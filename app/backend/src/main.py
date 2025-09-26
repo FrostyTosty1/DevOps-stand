@@ -7,6 +7,10 @@ from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 
 app = FastAPI(title="TinyTasks API (MVP)")
 
+# Prometheus metrics middleware
+# This middleware intercepts every HTTP request/response,
+# measures request duration (latency), extracts method, path and status,
+# and updates Prometheus counters and histograms accordingly.
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     start = perf_counter()
@@ -21,14 +25,23 @@ async def metrics_middleware(request: Request, call_next):
     REQUEST_LATENCY.labels(method=method, path=path).observe(duration)
     return response
 
+# Health check endpoint
+# Used by orchestrators (Kubernetes, Docker, load balancers) 
+# to verify that the service is alive and responding.
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
 
+# Prometheus metrics endpoint
+# Exposes collected application metrics in plain text format 
+# so that Prometheus can scrape them periodically.
 @app.get("/metrics")
 def metrics():
     return PlainTextResponse(prometheus_app(), media_type="text/plain")
 
+# Root endpoint
+# Provides basic service information (name and version) 
+# for quick identification or debugging.
 @app.get("/")
 def root():
     return JSONResponse({"service": "tinytasks-backend", "version": "0.1.0"})
