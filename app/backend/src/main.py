@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, Depends
 from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
@@ -79,7 +80,15 @@ def create_task(payload: TaskCreate, db: Session = Depends(get_db)):
     db.refresh(task)
     return task
 
-# Return all tasks from DB."""
+# Return all tasks from DB.
 @app.get("/api/tasks", response_model=list[TaskRead])
 def list_tasks(db: Session = Depends(get_db)):
     return db.query(Task).all()
+
+# Return a single task by ID
+@app.get("/api/tasks/{task_id}", response_model=TaskRead)
+def get_task(task_id: str, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
