@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from src.db import Base
 
 class Task(Base):
-    #ORM model for tasks table
+    # ORM model for tasks table
     __tablename__ = "tasks"
 
     # Primary key: UUID stored as string

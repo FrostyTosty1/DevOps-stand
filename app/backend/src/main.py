@@ -1,13 +1,18 @@
 from time import perf_counter
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Response
+
+from fastapi import FastAPI, Request, Response, Depends
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from src.db import check_db 
+from sqlalchemy.orm import Session
+
+from src.db import check_db, get_db
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 from src.db import init_db_schema
-from src import models 
+from src.models import Task
+from src.schemas import TaskCreate, TaskRead
+from src import models
 
 # Initialize database schema on app startup.
 @asynccontextmanager
@@ -37,7 +42,7 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 # Health check endpoint
-# Used by orchestrators (Kubernetes, Docker, load balancers) 
+# Used by orchestrators (Kubernetes, Docker, load balancers)
 # to verify that the service is alive and responding.
 @app.get("/healthz")
 def healthz():
@@ -48,19 +53,33 @@ def healthz():
 # Later: will actually ping PostgreSQL.
 @app.get("/db/healthz")
 def db_healthz():
-    check_db()       
+    check_db()
     return {"db": "ok"}
 
 # Prometheus metrics endpoint
-# Exposes collected application metrics in plain text format 
+# Exposes collected application metrics in plain text format
 # so that Prometheus can scrape them periodically.
 @app.get("/metrics")
 def metrics():
     return PlainTextResponse(prometheus_app(), media_type="text/plain")
 
 # Root endpoint
-# Provides basic service information (name and version) 
+# Provides basic service information (name and version)
 # for quick identification or debugging.
 @app.get("/")
 def root():
     return JSONResponse({"service": __title__, "version": __version__})
+
+# Create a new task in DB.
+@app.post("/api/tasks", response_model=TaskRead)
+def create_task(payload: TaskCreate, db: Session = Depends(get_db)):
+    task = Task(title=payload.title)
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+# Return all tasks from DB."""
+@app.get("/api/tasks", response_model=list[TaskRead])
+def list_tasks(db: Session = Depends(get_db)):
+    return db.query(Task).all()
