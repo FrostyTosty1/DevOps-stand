@@ -8,6 +8,8 @@ from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
+from pydantic import BaseModel
+
 from src.db import check_db, get_db
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 from src.db import init_db_schema
@@ -92,3 +94,35 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+# Schema for updating a task (partial).
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    done: bool | None = None
+
+# Update a task by ID (title and/or done).
+@app.patch("/api/tasks/{task_id}", response_model=TaskRead)
+def update_task(task_id: str, payload: TaskUpdate, db: Session = Depends(get_db)):
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if payload.title is not None:
+        task.title = payload.title
+    if payload.done is not None:
+        task.done = payload.done
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+# Delete a task by ID. Returns 204 if deleted, 404 if not found
+@app.delete("/api/tasks/{task_id}", status_code=204)
+def delete_task(task_id: str, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db.delete(task)
+    db.commit()
+    return None
