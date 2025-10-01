@@ -1,13 +1,22 @@
 from time import perf_counter
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from src.db import check_db 
-
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
+from src.db import init_db_schema
+from src import models 
 
-app = FastAPI(title="TinyTasks API (MVP)")
+# Initialize database schema on app startup.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Code executed on startup
+    init_db_schema()
+    yield
+
+app = FastAPI(title="TinyTasks API (MVP)", lifespan=lifespan)
 
 # Prometheus metrics middleware
 # This middleware intercepts every HTTP request/response,
