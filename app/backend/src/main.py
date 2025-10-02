@@ -2,19 +2,20 @@ from time import perf_counter
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, Depends
+from fastapi import FastAPI, Request, Response, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, PlainTextResponse
-from fastapi import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy.orm import Session
 
 from pydantic import BaseModel
 
-from src.db import check_db, get_db
+from typing import Optional
+
+from src.db import check_db, get_db, init_db_schema
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
-from src.db import init_db_schema
 from src.models import Task
-from src.schemas import TaskCreate, TaskRead
+from src.schemas import TaskCreate, TaskRead, TaskUpdate
 from src import models
 
 # Initialize database schema on app startup.
@@ -25,6 +26,17 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="TinyTasks API (MVP)", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",   # Vite (React) dev server
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],           # allow all HTTP methods
+    allow_headers=["*"],           # allow all headers
+)
 
 # Prometheus metrics middleware
 # This middleware intercepts every HTTP request/response,
@@ -84,8 +96,17 @@ def create_task(payload: TaskCreate, db: Session = Depends(get_db)):
 
 # Return all tasks from DB.
 @app.get("/api/tasks", response_model=list[TaskRead])
-def list_tasks(db: Session = Depends(get_db)):
-    return db.query(Task).all()
+def list_tasks(
+    db: Session = Depends(get_db),
+    done: Optional[bool] = Query(default=None, description="Filter by completion status"),
+    limit: int = Query(default=50, ge=1, le=200, description="Max items to return"),
+    offset: int = Query(default=0, ge=0, description="Number of items to skip"),
+):
+    # Return tasks with optional filtering and pagination.
+    q = db.query(Task).order_by(Task.created_at.desc())
+    if done is not None:
+        q = q.filter(Task.done == done)
+    return q.offset(offset).limit(limit).all()
 
 # Return a single task by ID
 @app.get("/api/tasks/{task_id}", response_model=TaskRead)
@@ -96,18 +117,24 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
     return task
 
 # Schema for updating a task (partial).
-class TaskUpdate(BaseModel):
-    title: str | None = None
-    done: bool | None = None
+#class TaskUpdate(BaseModel):
+#    title: str | None = None
+#   done: bool | None = None
 
 # Update a task by ID (title and/or done).
 @app.patch("/api/tasks/{task_id}", response_model=TaskRead)
 def update_task(task_id: str, payload: TaskUpdate, db: Session = Depends(get_db)):
 
+    # Find task by ID
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # Reject empty payloads like {}
+    if payload.title is None and payload.done is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+    
+    # Apply updates
     if payload.title is not None:
         task.title = payload.title
     if payload.done is not None:
