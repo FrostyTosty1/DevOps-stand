@@ -1,0 +1,5 @@
+/app/backend/venv
+/app/backend/src/__pycache__
+
+#Remove later 
+/app/backend/tinytasks.db 
