@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 class TaskCreate(BaseModel):
     # Schema for creating a new task (input)
@@ -39,5 +39,4 @@ class TaskRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True  # Allows ORM objects to be converted into schema
+    model_config = ConfigDict(from_attributes=True)
