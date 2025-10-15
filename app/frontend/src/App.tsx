@@ -26,7 +26,7 @@ export default function App() {
   const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set());
   const [pendingSave, setPendingSave] = useState<Set<string>>(new Set());
 
-  // Simple client-side filter state: all / open / done
+  // Client-side filter state: all / open / done
   const [filter, setFilter] = useState<"all" | "open" | "done">("all");
 
   // Dark mode state (persist to localStorage and toggle <html>.classList)
@@ -36,6 +36,10 @@ export default function App() {
     if (saved === "false") return false;
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
   });
+
+  // Visual animation states (safe, no hooks inside .map)
+  const [appeared, setAppeared] = useState<Set<string>>(new Set());       // items that finished appear animation
+  const [deletingVisual, setDeletingVisual] = useState<Set<string>>(new Set()); // items currently fading out
 
   useEffect(() => {
     // Load tasks on first render
@@ -52,6 +56,26 @@ export default function App() {
     else root.classList.remove("dark");
     localStorage.setItem("tt.dark", String(dark));
   }, [dark]);
+
+  useEffect(() => {
+    // Mark newly seen tasks as "appearing" → next tick they become "appeared"
+    // This gives fade/slide-in without per-item hooks.
+    const idsToSchedule: string[] = [];
+    for (const t of tasks) {
+      if (!appeared.has(t.id)) idsToSchedule.push(t.id);
+    }
+    if (idsToSchedule.length > 0) {
+      // Next tick to allow initial render with opacity-0/translate-y
+      const t = setTimeout(() => {
+        setAppeared((prev) => {
+          const next = new Set(prev);
+          idsToSchedule.forEach((id) => next.add(id));
+          return next;
+        });
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [tasks, appeared]);
 
   // Small helper: run async action while adding/removing id to a Set state
   function withId<T extends string>(
@@ -80,6 +104,12 @@ export default function App() {
       // Prepend newly created task to the list (no full refetch needed)
       setTasks((prev) => [created, ...prev]);
       setNewTitle(""); // clear input
+      // Ensure newly added item runs appear animation
+      setAppeared((prev) => {
+        const next = new Set(prev);
+        next.delete(created.id); // force it to start from hidden state for the next effect
+        return next;
+      });
     } catch (err) {
       console.error(err);
       alert("Failed to create task");
@@ -103,21 +133,38 @@ export default function App() {
     });
   }
 
-  // Delete a task via DELETE /api/tasks/:id
+  // Delete a task via DELETE /api/tasks/:id (with gentle fade-out)
   async function handleDelete(task: Task) {
     if (pendingDelete.has(task.id)) return;
-    // simple confirm to avoid accidental deletes
     if (!confirm(`Delete task "${task.title}"?`)) return;
+
     await withId(setPendingDelete, task.id, async () => {
       try {
         await deleteTask(task.id);
-        // Remove item from list
-        setTasks((prev) => prev.filter((t) => t.id !== task.id));
-        // If the deleted task was being edited, reset edit state
-        if (editingId === task.id) {
-          setEditingId(null);
-          setEditingTitle("");
-        }
+
+        // Trigger gentle fade-out first
+        setDeletingVisual((prev) => new Set(prev).add(task.id));
+
+        // After the CSS transition ends (~180ms), remove from list
+        setTimeout(() => {
+          setTasks((prev) => prev.filter((t) => t.id !== task.id));
+          setDeletingVisual((prev) => {
+            const next = new Set(prev);
+            next.delete(task.id);
+            return next;
+          });
+          // Reset edit state if needed
+          if (editingId === task.id) {
+            setEditingId(null);
+            setEditingTitle("");
+          }
+          // Also cleanup "appeared" set
+          setAppeared((prev) => {
+            const next = new Set(prev);
+            next.delete(task.id);
+            return next;
+          });
+        }, 180); // matches transition duration
       } catch (err) {
         console.error(err);
         alert("Failed to delete task");
@@ -268,14 +315,20 @@ export default function App() {
               const isDeleting = pendingDelete.has(t.id);
               const isSaving = pendingSave.has(t.id);
 
+              // Animation flags
+              const isAppeared = appeared.has(t.id);
+              const isFadingOut = deletingVisual.has(t.id);
+
               return (
                 <li
                   key={t.id}
-                  className={`flex items-center justify-between gap-2 rounded-lg border p-3 transition ${
-                    t.done
-                      ? "bg-emerald-50 dark:bg-emerald-900/20"
-                      : "bg-white dark:bg-gray-800"
-                  } border-gray-200 dark:border-gray-700`}
+                  className={`flex items-center justify-between gap-2 rounded-lg border p-3
+                    border-gray-200 dark:border-gray-700
+                    transition-all duration-200
+                    ${t.done ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-white dark:bg-gray-800"}
+                    ${isAppeared ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}
+                    ${isFadingOut ? "opacity-0 scale-[0.98] translate-y-1" : ""}
+                  `}
                 >
                   <span className="min-w-0">
                     {isEditing ? (
@@ -338,7 +391,7 @@ export default function App() {
 
                     <button
                       onClick={() => handleToggle(t)}
-                      disabled={isToggling}
+                      disabled={isToggling || isFadingOut}
                       className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
                         isToggling
                           ? "bg-gray-200 text-gray-400 cursor-wait"
@@ -353,9 +406,9 @@ export default function App() {
 
                     <button
                       onClick={() => handleDelete(t)}
-                      disabled={isDeleting}
+                      disabled={isDeleting || isFadingOut}
                       className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
-                        isDeleting
+                        isDeleting || isFadingOut
                           ? "bg-red-300 text-white cursor-wait"
                           : "bg-red-600 text-white hover:bg-red-700 focus:ring-red-300"
                       }`}
