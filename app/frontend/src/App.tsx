@@ -26,6 +26,9 @@ export default function App() {
   const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set());
   const [pendingSave, setPendingSave] = useState<Set<string>>(new Set());
 
+  // Simple client-side filter state: all / open / done
+  const [filter, setFilter] = useState<"all" | "open" | "done">("all");
+
   // Small helper: run async action while adding/removing id to a Set state
   function withId<T extends string>(
     setState: React.Dispatch<React.SetStateAction<Set<T>>>,
@@ -138,9 +141,48 @@ export default function App() {
   if (loading) return <div className="p-4">Loading…</div>;
   if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
 
+  // Apply client-side filtering before render
+  const visibleTasks = tasks.filter((t) =>
+    filter === "all" ? true : filter === "done" ? t.done : !t.done
+  );
+
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 font-sans">
       <h1 className="mb-3 text-2xl font-semibold text-red-500">TinyTasks — Tasks</h1>
+
+      {/* Filter controls: All / Open / Done */}
+      <div className="mb-4 flex gap-2">
+        <button
+          onClick={() => setFilter("all")}
+          className={`rounded-md px-3 py-1.5 text-sm transition ${
+            filter === "all"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => setFilter("open")}
+          className={`rounded-md px-3 py-1.5 text-sm transition ${
+            filter === "open"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+          }`}
+        >
+          Open
+        </button>
+        <button
+          onClick={() => setFilter("done")}
+          className={`rounded-md px-3 py-1.5 text-sm transition ${
+            filter === "done"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+          }`}
+        >
+          Done
+        </button>
+      </div>
 
       {/* Minimal input + button form to create a task */}
       <form onSubmit={handleAddTask} className="mb-4 flex gap-2">
@@ -164,11 +206,11 @@ export default function App() {
         </button>
       </form>
 
-      {tasks.length === 0 ? (
-        <p className="text-gray-600">No tasks yet.</p>
+      {visibleTasks.length === 0 ? (
+        <p className="text-gray-600">No tasks to show.</p>
       ) : (
         <ul className="space-y-2">
-          {tasks.map((t) => {
+          {visibleTasks.map((t) => {
             const isEditing = editingId === t.id;
             const isToggling = pendingToggle.has(t.id);
             const isDeleting = pendingDelete.has(t.id);
