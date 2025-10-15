@@ -31,11 +31,9 @@ export default function App() {
 
   // Dark mode state (persist to localStorage and toggle <html>.classList)
   const [dark, setDark] = useState<boolean>(() => {
-    // load initial preference
     const saved = localStorage.getItem("tt.dark");
     if (saved === "true") return true;
     if (saved === "false") return false;
-    // fall back to system preference
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
   });
 
@@ -242,7 +240,26 @@ export default function App() {
         </form>
 
         {visibleTasks.length === 0 ? (
-          <p className="text-gray-600 dark:text-gray-400">No tasks to show.</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center text-gray-600 dark:text-gray-400">
+            {/* Emoji as temporary "icon" — later can replace with an SVG */}
+            <div className="text-6xl mb-3">{tasks.length === 0 ? "📝" : "🎉"}</div>
+
+            {tasks.length === 0 ? (
+              <>
+                <p className="text-lg font-medium mb-1">No tasks yet</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500">
+                  Add your first one above to get started.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-medium mb-1">All tasks completed!</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500">
+                  Take a break, you deserve it ☕
+                </p>
+              </>
+            )}
+          </div>
         ) : (
           <ul className="space-y-2">
             {visibleTasks.map((t) => {
