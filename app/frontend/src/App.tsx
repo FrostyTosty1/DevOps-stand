@@ -29,21 +29,15 @@ export default function App() {
   // Simple client-side filter state: all / open / done
   const [filter, setFilter] = useState<"all" | "open" | "done">("all");
 
-  // Small helper: run async action while adding/removing id to a Set state
-  function withId<T extends string>(
-    setState: React.Dispatch<React.SetStateAction<Set<T>>>,
-    id: T,
-    fn: () => Promise<void>
-  ) {
-    setState(prev => new Set(prev).add(id));
-    return fn().finally(() => {
-      setState(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    });
-  }
+  // Dark mode state (persist to localStorage and toggle <html>.classList)
+  const [dark, setDark] = useState<boolean>(() => {
+    // load initial preference
+    const saved = localStorage.getItem("tt.dark");
+    if (saved === "true") return true;
+    if (saved === "false") return false;
+    // fall back to system preference
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+  });
 
   useEffect(() => {
     // Load tasks on first render
@@ -52,6 +46,30 @@ export default function App() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    // Apply/remove `dark` class on <html>, persist choice
+    const root = document.documentElement;
+    if (dark) root.classList.add("dark");
+    else root.classList.remove("dark");
+    localStorage.setItem("tt.dark", String(dark));
+  }, [dark]);
+
+  // Small helper: run async action while adding/removing id to a Set state
+  function withId<T extends string>(
+    setState: React.Dispatch<React.SetStateAction<Set<T>>>,
+    id: T,
+    fn: () => Promise<void>
+  ) {
+    setState((prev) => new Set(prev).add(id));
+    return fn().finally(() => {
+      setState((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    });
+  }
 
   // Handle form submit: create a task via POST /api/tasks
   async function handleAddTask(e: React.FormEvent) {
@@ -147,176 +165,198 @@ export default function App() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 font-sans">
-      <h1 className="mb-3 text-2xl font-semibold text-red-500">TinyTasks — Tasks</h1>
+    // Page wrapper: light/dark backgrounds and text
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 font-sans">
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">TinyTasks — Tasks</h1>
 
-      {/* Filter controls: All / Open / Done */}
-      <div className="mb-4 flex gap-2">
-        <button
-          onClick={() => setFilter("all")}
-          className={`rounded-md px-3 py-1.5 text-sm transition ${
-            filter === "all"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-          }`}
-        >
-          All
-        </button>
-        <button
-          onClick={() => setFilter("open")}
-          className={`rounded-md px-3 py-1.5 text-sm transition ${
-            filter === "open"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-          }`}
-        >
-          Open
-        </button>
-        <button
-          onClick={() => setFilter("done")}
-          className={`rounded-md px-3 py-1.5 text-sm transition ${
-            filter === "done"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-          }`}
-        >
-          Done
-        </button>
-      </div>
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => setDark((d) => !d)}
+            className={`rounded-md px-3 py-1.5 text-sm transition focus:outline-none focus:ring-2 ${
+              dark
+                ? "bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-300"
+                : "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300"
+            }`}
+            title="Toggle dark mode"
+          >
+            {dark ? "Dark: ON" : "Dark: OFF"}
+          </button>
+        </div>
 
-      {/* Minimal input + button form to create a task */}
-      <form onSubmit={handleAddTask} className="mb-4 flex gap-2">
-        <input
-          type="text"
-          placeholder="New task title"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-        />
-        <button
-          type="submit"
-          disabled={adding || !newTitle.trim()}
-          className={`rounded-md px-4 py-2 text-white transition focus:outline-none focus:ring-2 ${
-            adding
-              ? "bg-blue-300 cursor-wait"
-              : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-300"
-          }`}
-        >
-          {adding ? "Adding…" : "Add"}
-        </button>
-      </form>
+        {/* Filter controls: All / Open / Done */}
+        <div className="mb-4 flex gap-2">
+          <button
+            onClick={() => setFilter("all")}
+            className={`rounded-md px-3 py-1.5 text-sm transition ${
+              filter === "all"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setFilter("open")}
+            className={`rounded-md px-3 py-1.5 text-sm transition ${
+              filter === "open"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            Open
+          </button>
+          <button
+            onClick={() => setFilter("done")}
+            className={`rounded-md px-3 py-1.5 text-sm transition ${
+              filter === "done"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            Done
+          </button>
+        </div>
 
-      {visibleTasks.length === 0 ? (
-        <p className="text-gray-600">No tasks to show.</p>
-      ) : (
-        <ul className="space-y-2">
-          {visibleTasks.map((t) => {
-            const isEditing = editingId === t.id;
-            const isToggling = pendingToggle.has(t.id);
-            const isDeleting = pendingDelete.has(t.id);
-            const isSaving = pendingSave.has(t.id);
+        {/* Minimal input + button form to create a task */}
+        <form onSubmit={handleAddTask} className="mb-4 flex gap-2">
+          <input
+            type="text"
+            placeholder="New task title"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            className="flex-1 rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-800 dark:placeholder-gray-400"
+          />
+          <button
+            type="submit"
+            disabled={adding || !newTitle.trim()}
+            className={`rounded-md px-4 py-2 text-white transition focus:outline-none focus:ring-2 ${
+              adding
+                ? "bg-blue-300 cursor-wait"
+                : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-300"
+            }`}
+          >
+            {adding ? "Adding…" : "Add"}
+          </button>
+        </form>
 
-            return (
-              <li
-                key={t.id}
-                className={`flex items-center justify-between gap-2 rounded-lg border border-gray-200 p-3 transition ${
-                  t.done ? "bg-emerald-50" : "bg-white"
-                }`}
-              >
-                <span className="min-w-0">
-                  {isEditing ? (
-                    <input
-                      autoFocus
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit(t);
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                      className="min-w-[220px] rounded-md border border-gray-300 px-2 py-1 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                      placeholder="Edit title"
-                    />
-                  ) : (
-                    <strong className="truncate">{t.title}</strong>
-                  )}
-                  <span className="ml-2 text-xs text-gray-500">{t.done ? "done" : "open"}</span>
-                </span>
+        {visibleTasks.length === 0 ? (
+          <p className="text-gray-600 dark:text-gray-400">No tasks to show.</p>
+        ) : (
+          <ul className="space-y-2">
+            {visibleTasks.map((t) => {
+              const isEditing = editingId === t.id;
+              const isToggling = pendingToggle.has(t.id);
+              const isDeleting = pendingDelete.has(t.id);
+              const isSaving = pendingSave.has(t.id);
 
-                <div className="flex items-center gap-2">
-                  {isEditing ? (
-                    <>
-                      <button
-                        onClick={() => saveEdit(t)}
-                        disabled={isSaving}
-                        className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
-                          isSaving
-                            ? "bg-blue-300 text-white cursor-wait"
-                            : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300"
-                        }`}
-                        title="Save title"
-                      >
-                        {isSaving ? "Saving…" : "Save"}
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        disabled={isSaving}
-                        className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
-                          isSaving
-                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300"
-                        }`}
-                        title="Cancel editing"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => startEdit(t)}
-                      className="rounded-md bg-amber-500 px-3 py-1.5 text-white transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                      title="Edit title"
-                    >
-                      Edit
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => handleToggle(t)}
-                    disabled={isToggling}
-                    className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
-                      isToggling
-                        ? "bg-gray-200 text-gray-400 cursor-wait"
-                        : t.done
-                        ? "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300"
-                        : "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-300"
-                    }`}
-                    title={t.done ? "Undo" : "Mark as done"}
-                  >
-                    {isToggling ? "Saving…" : t.done ? "Undo" : "Done"}
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(t)}
-                    disabled={isDeleting}
-                    className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
-                      isDeleting
-                        ? "bg-red-300 text-white cursor-wait"
-                        : "bg-red-600 text-white hover:bg-red-700 focus:ring-red-300"
-                    }`}
-                    title="Delete task"
-                  >
-                    {isDeleting ? "Deleting…" : "Delete"}
-                  </button>
-
-                  <span className="hidden text-xs text-gray-400 sm:inline">
-                    {new Date(t.created_at).toLocaleString()}
+              return (
+                <li
+                  key={t.id}
+                  className={`flex items-center justify-between gap-2 rounded-lg border p-3 transition ${
+                    t.done
+                      ? "bg-emerald-50 dark:bg-emerald-900/20"
+                      : "bg-white dark:bg-gray-800"
+                  } border-gray-200 dark:border-gray-700`}
+                >
+                  <span className="min-w-0">
+                    {isEditing ? (
+                      <input
+                        autoFocus
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(t);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        className="min-w-[220px] rounded-md border px-2 py-1 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 border-gray-300 dark:border-gray-700 dark:bg-gray-900"
+                        placeholder="Edit title"
+                      />
+                    ) : (
+                      <strong className="truncate">{t.title}</strong>
+                    )}
+                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                      {t.done ? "done" : "open"}
+                    </span>
                   </span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+
+                  <div className="flex items-center gap-2">
+                    {isEditing ? (
+                      <>
+                        <button
+                          onClick={() => saveEdit(t)}
+                          disabled={isSaving}
+                          className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
+                            isSaving
+                              ? "bg-blue-300 text-white cursor-wait"
+                              : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300"
+                          }`}
+                          title="Save title"
+                        >
+                          {isSaving ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          disabled={isSaving}
+                          className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
+                            isSaving
+                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              : "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+                          }`}
+                          title="Cancel editing"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => startEdit(t)}
+                        className="rounded-md bg-amber-500 px-3 py-1.5 text-white transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                        title="Edit title"
+                      >
+                        Edit
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleToggle(t)}
+                      disabled={isToggling}
+                      className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
+                        isToggling
+                          ? "bg-gray-200 text-gray-400 cursor-wait"
+                          : t.done
+                          ? "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+                          : "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-300"
+                      }`}
+                      title={t.done ? "Undo" : "Mark as done"}
+                    >
+                      {isToggling ? "Saving…" : t.done ? "Undo" : "Done"}
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(t)}
+                      disabled={isDeleting}
+                      className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
+                        isDeleting
+                          ? "bg-red-300 text-white cursor-wait"
+                          : "bg-red-600 text-white hover:bg-red-700 focus:ring-red-300"
+                      }`}
+                      title="Delete task"
+                    >
+                      {isDeleting ? "Deleting…" : "Delete"}
+                    </button>
+
+                    <span className="hidden text-xs text-gray-400 sm:inline">
+                      {new Date(t.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
