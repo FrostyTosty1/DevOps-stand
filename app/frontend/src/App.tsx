@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { fetchTasks, createTask, toggleTaskDone, deleteTask, updateTaskTitle, type Task } from "./api"; // + updateTaskTitle
+import {
+  fetchTasks,
+  createTask,
+  toggleTaskDone,
+  deleteTask,
+  updateTaskTitle,
+  type Task,
+} from "./api";
 
 // Top-level component: fetch and render tasks from the backend.
 export default function App() {
@@ -95,65 +102,45 @@ export default function App() {
     }
   }
 
-  if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
-  if (error) return <div style={{ padding: 16, color: "red" }}>Error: {error}</div>;
+  if (loading) return <div className="p-4">Loading…</div>;
+  if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
 
   return (
-    <div style={{ maxWidth: 720, margin: "40px auto", fontFamily: "ui-sans-serif, system-ui" }}>
-      <h1 style={{ marginBottom: 12 }}>TinyTasks — Tasks</h1>
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 font-sans">
+      <h1 className="mb-3 text-2xl font-semibold text-red-500">TinyTasks — Tasks</h1>
 
       {/* Minimal input + button form to create a task */}
-      <form onSubmit={handleAddTask} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <form onSubmit={handleAddTask} className="mb-4 flex gap-2">
         <input
           type="text"
           placeholder="New task title"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
-          style={{
-            flex: 1,
-            padding: "8px 10px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-          }}
+          className="flex-1 rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
         />
         <button
           type="submit"
-          style={{
-            background: "#2563eb",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            padding: "8px 14px",
-            cursor: "pointer",
-          }}
+          className="rounded-md bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
         >
           Add
         </button>
       </form>
 
       {tasks.length === 0 ? (
-        <p>No tasks yet.</p>
+        <p className="text-gray-600">No tasks yet.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <ul className="space-y-2">
           {tasks.map((t) => {
             const isEditing = editingId === t.id;
 
             return (
               <li
                 key={t.id}
-                style={{
-                  padding: "10px 12px",
-                  marginBottom: 8,
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 8,
-                  background: t.done ? "#f0fdf4" : "#fff",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 8,
-                  alignItems: "center",
-                }}
+                className={`flex items-center justify-between gap-2 rounded-lg border border-gray-200 p-3 transition ${
+                  t.done ? "bg-emerald-50" : "bg-white"
+                }`}
               >
-                <span>
+                <span className="min-w-0">
                   {isEditing ? (
                     <input
                       autoFocus
@@ -163,49 +150,28 @@ export default function App() {
                         if (e.key === "Enter") saveEdit(t);
                         if (e.key === "Escape") cancelEdit();
                       }}
-                      style={{
-                        padding: "6px 8px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: 6,
-                        minWidth: 220,
-                      }}
+                      className="min-w-[220px] rounded-md border border-gray-300 px-2 py-1 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       placeholder="Edit title"
                     />
                   ) : (
-                    <strong>{t.title}</strong>
+                    <strong className="truncate">{t.title}</strong>
                   )}
-                  <span style={{ marginLeft: 8, color: "#6b7280", fontSize: 12 }}>
-                    {t.done ? "done" : "open"}
-                  </span>
+                  <span className="ml-2 text-xs text-gray-500">{t.done ? "done" : "open"}</span>
                 </span>
 
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div className="flex items-center gap-2">
                   {isEditing ? (
                     <>
                       <button
                         onClick={() => saveEdit(t)}
-                        style={{
-                          background: "#2563eb",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 6,
-                          padding: "6px 10px",
-                          cursor: "pointer",
-                        }}
+                        className="rounded-md bg-blue-600 px-3 py-1.5 text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
                         title="Save title"
                       >
                         Save
                       </button>
                       <button
                         onClick={cancelEdit}
-                        style={{
-                          background: "#e5e7eb",
-                          color: "#111827",
-                          border: "none",
-                          borderRadius: 6,
-                          padding: "6px 10px",
-                          cursor: "pointer",
-                        }}
+                        className="rounded-md bg-gray-200 px-3 py-1.5 text-gray-900 transition hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
                         title="Cancel editing"
                       >
                         Cancel
@@ -214,14 +180,7 @@ export default function App() {
                   ) : (
                     <button
                       onClick={() => startEdit(t)}
-                      style={{
-                        background: "#f59e0b",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        padding: "6px 10px",
-                        cursor: "pointer",
-                      }}
+                      className="rounded-md bg-amber-500 px-3 py-1.5 text-white transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-300"
                       title="Edit title"
                     >
                       Edit
@@ -230,14 +189,11 @@ export default function App() {
 
                   <button
                     onClick={() => handleToggle(t)}
-                    style={{
-                      background: t.done ? "#e5e7eb" : "#10b981",
-                      color: t.done ? "#111827" : "white",
-                      border: "none",
-                      borderRadius: 6,
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                    }}
+                    className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
+                      t.done
+                        ? "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300"
+                        : "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-300"
+                    }`}
                     title={t.done ? "Undo" : "Mark as done"}
                   >
                     {t.done ? "Undo" : "Done"}
@@ -245,20 +201,13 @@ export default function App() {
 
                   <button
                     onClick={() => handleDelete(t)}
-                    style={{
-                      background: "#ef4444",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 6,
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                    }}
+                    className="rounded-md bg-red-600 px-3 py-1.5 text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
                     title="Delete task"
                   >
                     Delete
                   </button>
 
-                  <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                  <span className="hidden text-xs text-gray-400 sm:inline">
                     {new Date(t.created_at).toLocaleString()}
                   </span>
                 </div>
