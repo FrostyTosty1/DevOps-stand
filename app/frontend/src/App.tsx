@@ -20,6 +20,28 @@ export default function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
 
+  // Pending flags to avoid double-clicks and show progress
+  const [adding, setAdding] = useState(false); // for Add form
+  const [pendingToggle, setPendingToggle] = useState<Set<string>>(new Set());
+  const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set());
+  const [pendingSave, setPendingSave] = useState<Set<string>>(new Set());
+
+  // Small helper: run async action while adding/removing id to a Set state
+  function withId<T extends string>(
+    setState: React.Dispatch<React.SetStateAction<Set<T>>>,
+    id: T,
+    fn: () => Promise<void>
+  ) {
+    setState(prev => new Set(prev).add(id));
+    return fn().finally(() => {
+      setState(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    });
+  }
+
   useEffect(() => {
     // Load tasks on first render
     fetchTasks()
@@ -32,7 +54,8 @@ export default function App() {
   async function handleAddTask(e: React.FormEvent) {
     e.preventDefault();
     const title = newTitle.trim();
-    if (!title) return; // ignore empty input
+    if (!title || adding) return; // ignore empty input or while pending
+    setAdding(true);
     try {
       const created = await createTask(title);
       // Prepend newly created task to the list (no full refetch needed)
@@ -41,38 +64,46 @@ export default function App() {
     } catch (err) {
       console.error(err);
       alert("Failed to create task");
+    } finally {
+      setAdding(false);
     }
   }
 
   // Toggle 'done' flag via PATCH /api/tasks/:id
   async function handleToggle(task: Task) {
-    try {
-      const updated = await toggleTaskDone(task.id, !task.done);
-      // Update item in place
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update task status");
-    }
+    if (pendingToggle.has(task.id)) return; // already in-flight
+    await withId(setPendingToggle, task.id, async () => {
+      try {
+        const updated = await toggleTaskDone(task.id, !task.done);
+        // Update item in place
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      } catch (err) {
+        console.error(err);
+        alert("Failed to update task status");
+      }
+    });
   }
 
   // Delete a task via DELETE /api/tasks/:id
   async function handleDelete(task: Task) {
+    if (pendingDelete.has(task.id)) return;
     // simple confirm to avoid accidental deletes
     if (!confirm(`Delete task "${task.title}"?`)) return;
-    try {
-      await deleteTask(task.id);
-      // Remove item from list
-      setTasks((prev) => prev.filter((t) => t.id !== task.id));
-      // If the deleted task was being edited, reset edit state
-      if (editingId === task.id) {
-        setEditingId(null);
-        setEditingTitle("");
+    await withId(setPendingDelete, task.id, async () => {
+      try {
+        await deleteTask(task.id);
+        // Remove item from list
+        setTasks((prev) => prev.filter((t) => t.id !== task.id));
+        // If the deleted task was being edited, reset edit state
+        if (editingId === task.id) {
+          setEditingId(null);
+          setEditingTitle("");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to delete task");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete task");
-    }
+    });
   }
 
   // Start inline editing for a task
@@ -90,16 +121,18 @@ export default function App() {
   // Save new title via PATCH /api/tasks/:id
   async function saveEdit(task: Task) {
     const title = editingTitle.trim();
-    if (!title) return; // ignore empty/whitespace-only
-    try {
-      const updated = await updateTaskTitle(task.id, title);
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-      setEditingId(null);
-      setEditingTitle("");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update title");
-    }
+    if (!title || pendingSave.has(task.id)) return; // ignore empty/whitespace-only or while pending
+    await withId(setPendingSave, task.id, async () => {
+      try {
+        const updated = await updateTaskTitle(task.id, title);
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+        setEditingId(null);
+        setEditingTitle("");
+      } catch (err) {
+        console.error(err);
+        alert("Failed to update title");
+      }
+    });
   }
 
   if (loading) return <div className="p-4">Loading…</div>;
@@ -120,9 +153,14 @@ export default function App() {
         />
         <button
           type="submit"
-          className="rounded-md bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          disabled={adding || !newTitle.trim()}
+          className={`rounded-md px-4 py-2 text-white transition focus:outline-none focus:ring-2 ${
+            adding
+              ? "bg-blue-300 cursor-wait"
+              : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-300"
+          }`}
         >
-          Add
+          {adding ? "Adding…" : "Add"}
         </button>
       </form>
 
@@ -132,6 +170,9 @@ export default function App() {
         <ul className="space-y-2">
           {tasks.map((t) => {
             const isEditing = editingId === t.id;
+            const isToggling = pendingToggle.has(t.id);
+            const isDeleting = pendingDelete.has(t.id);
+            const isSaving = pendingSave.has(t.id);
 
             return (
               <li
@@ -164,14 +205,24 @@ export default function App() {
                     <>
                       <button
                         onClick={() => saveEdit(t)}
-                        className="rounded-md bg-blue-600 px-3 py-1.5 text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        disabled={isSaving}
+                        className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
+                          isSaving
+                            ? "bg-blue-300 text-white cursor-wait"
+                            : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300"
+                        }`}
                         title="Save title"
                       >
-                        Save
+                        {isSaving ? "Saving…" : "Save"}
                       </button>
                       <button
                         onClick={cancelEdit}
-                        className="rounded-md bg-gray-200 px-3 py-1.5 text-gray-900 transition hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        disabled={isSaving}
+                        className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
+                          isSaving
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300"
+                        }`}
                         title="Cancel editing"
                       >
                         Cancel
@@ -189,22 +240,30 @@ export default function App() {
 
                   <button
                     onClick={() => handleToggle(t)}
+                    disabled={isToggling}
                     className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
-                      t.done
+                      isToggling
+                        ? "bg-gray-200 text-gray-400 cursor-wait"
+                        : t.done
                         ? "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300"
                         : "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-300"
                     }`}
                     title={t.done ? "Undo" : "Mark as done"}
                   >
-                    {t.done ? "Undo" : "Done"}
+                    {isToggling ? "Saving…" : t.done ? "Undo" : "Done"}
                   </button>
 
                   <button
                     onClick={() => handleDelete(t)}
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+                    disabled={isDeleting}
+                    className={`rounded-md px-3 py-1.5 transition focus:outline-none focus:ring-2 ${
+                      isDeleting
+                        ? "bg-red-300 text-white cursor-wait"
+                        : "bg-red-600 text-white hover:bg-red-700 focus:ring-red-300"
+                    }`}
                     title="Delete task"
                   >
-                    Delete
+                    {isDeleting ? "Deleting…" : "Delete"}
                   </button>
 
                   <span className="hidden text-xs text-gray-400 sm:inline">
