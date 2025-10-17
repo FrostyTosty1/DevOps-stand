@@ -3,3 +3,4 @@ uvicorn[standard]==0.30.6
 prometheus-client==0.20.0
 SQLAlchemy==2.0.34
 alembic==1.13.2
+python-dotenv==1.0.1

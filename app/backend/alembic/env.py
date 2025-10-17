@@ -6,6 +6,9 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool, create_engine
 from alembic import context
+from dotenv import load_dotenv 
+
+load_dotenv()  
 
 # --- Make sure src/ is importable (so Alembic can see our models) ---
 BASE_DIR = Path(__file__).resolve().parents[1]
