@@ -1,6 +1,11 @@
 /app/backend/venv
 /app/backend/src/__pycache__
 /app/backend/tests/__pycache__
+/app/backend/alembic/__pycache__
+app/backend/alembic/versions/__pycache__
+/app/backend/alembic/*.log
+
+app/frontend/.vite
 
 #Remove later 
 /app/backend/tinytasks.db 
