@@ -4,3 +4,4 @@ prometheus-client==0.20.0
 SQLAlchemy==2.0.34
 alembic==1.13.2
 python-dotenv==1.0.1
+psycopg2-binary==2.9.9

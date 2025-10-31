@@ -1,0 +1,20 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16
+    container_name: tinytask-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tinytasks}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tinytask}
+      POSTGRES_DB: ${POSTGRES_DB:-tinytask}
+    ports:
+      - '5432:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tinytasks} -d ${POSTGRES_DB:-tinytasks}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  db_data:
