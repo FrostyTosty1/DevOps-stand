@@ -16,5 +16,21 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tinytasks-backend:dev
+    container_name: tinytasks-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # App will read DATABASE_URL from env; Alembic too (entrypoint)
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-tinytasks}:${POSTGRES_PASSWORD:-tinytasks}@db:5432/${POSTGRES_DB:-tinytasks}
+      # (optional) FastAPI settings
+      # UVICORN_WORKERS: "1"
+    ports:
+      - "8080:8080"      
 volumes:
   db_data:

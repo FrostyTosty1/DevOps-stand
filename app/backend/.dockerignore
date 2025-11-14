@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtualenv
+venv/
+
+# Local SQLite (we will use Postgres in compose)
+tinytasks.db
+
+# Tests cache
+.pytest_cache/
+
+# VCS
+.git
+.gitignore
