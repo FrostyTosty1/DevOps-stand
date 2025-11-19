@@ -6,15 +6,15 @@ from dotenv import load_dotenv
 # Load environment variables from .env (for dev and local runs)
 load_dotenv()
 
-# Database connection URL (SQLite by default, can override via .env)
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tinytasks.db")
+# Database connection URL
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set. Configure it via environment variable.")
 
-# Create SQLAlchemy engine (with pre-ping and SQLite thread fix)
+# Create SQLAlchemy engine
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
     pool_pre_ping=True,
-    future=True,  # enable SQLAlchemy 2.x style
 )
 
 # Factory for database sessions (commit/rollback controlled manually)
