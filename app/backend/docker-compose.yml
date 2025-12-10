@@ -2,11 +2,11 @@ version: '3.9'
 services:
   db:
     image: postgres:16
-    container_name: tinytask-db
+    container_name: tinytasks-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-tinytasks}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tinytask}
-      POSTGRES_DB: ${POSTGRES_DB:-tinytask}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tinytasks}
+      POSTGRES_DB: ${POSTGRES_DB:-tinytasks}
     ports:
       - '5432:5432'
     volumes:
@@ -27,12 +27,12 @@ services:
         condition: service_healthy
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-tinytasks}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tinytask}
-      POSTGRES_DB: ${POSTGRES_DB:-tinytask}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tinytasks}
+      POSTGRES_DB: ${POSTGRES_DB:-tinytasks}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       # App will read DATABASE_URL from env; Alembic too (entrypoint)
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-tinytasks}:${POSTGRES_PASSWORD:-tinytask}@db:5432/${POSTGRES_DB:-tinytask}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-tinytasks}:${POSTGRES_PASSWORD:-tinytasks}@db:5432/${POSTGRES_DB:-tinytasks}
       # (optional) FastAPI settings
       # UVICORN_WORKERS: "1"
     ports:
