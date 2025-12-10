@@ -18,6 +18,9 @@ from src.models import Task
 from src.schemas import TaskCreate, TaskRead, TaskUpdate
 from src import models
 
+SERVICE_NAME = "TinyTasks API"
+SERVICE_VERSION = "0.1.0"
+
 # Initialize database schema on app startup.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -83,7 +86,7 @@ def metrics():
 # for quick identification or debugging.
 @app.get("/")
 def root():
-    return JSONResponse({"service": __title__, "version": __version__})
+    return JSONResponse({"service": SERVICE_NAME, "version": SERVICE_VERSION})
 
 # Create a new task in DB.
 @app.post("/api/tasks", response_model=TaskRead)
