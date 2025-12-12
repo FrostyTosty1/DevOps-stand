@@ -8,15 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy.orm import Session
 
-from pydantic import BaseModel
-
 from typing import Optional
 
 from src.db import check_db, get_db, init_db_schema, DATABASE_URL
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 from src.models import Task
 from src.schemas import TaskCreate, TaskRead, TaskUpdate
-from src import models
 
 SERVICE_NAME = "TinyTasks API"
 SERVICE_VERSION = "0.1.0"
