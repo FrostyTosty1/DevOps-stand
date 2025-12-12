@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from typing import Optional
 
-from src.db import check_db, get_db, init_db_schema
+from src.db import check_db, get_db, init_db_schema, DATABASE_URL
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 from src.models import Task
 from src.schemas import TaskCreate, TaskRead, TaskUpdate
@@ -24,8 +24,10 @@ SERVICE_VERSION = "0.1.0"
 # Initialize database schema on app startup.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Code executed on startup
-    init_db_schema()
+    # For SQLite (local dev/tests) we still auto-create tables.
+    # For Postgres (Docker / production) schema is managed by Alembic.
+    if DATABASE_URL.startswith("sqlite"):
+        init_db_schema()
     yield
 
 app = FastAPI(title="TinyTasks API (MVP)", lifespan=lifespan)
