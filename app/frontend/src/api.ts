@@ -1,6 +1,4 @@
 // Tiny API client for the backend.
-// For now the URL is hard-coded; later we'll move it to .env
-const API_BASE = "http://localhost:8080";
 
 export type Task = {
   id: string;
@@ -12,10 +10,10 @@ export type Task = {
 
 // Fetch list of tasks from FastAPI
 export async function fetchTasks(): Promise<Task[]> {
-  const res = await fetch(`${API_BASE}/api/tasks`);
+  const res = await fetch("/api/tasks");
   if (!res.ok) {
-    // Convert HTTP error to a thrown Error so UI can display it
-    throw new Error(`HTTP ${res.status}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(`GET /api/tasks → HTTP ${res.status}: ${text || "<empty>"}`);
   }
   return res.json() as Promise<Task[]>;
 }
