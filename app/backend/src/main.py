@@ -118,11 +118,6 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     return task
 
-# Schema for updating a task (partial).
-#class TaskUpdate(BaseModel):
-#    title: str | None = None
-#   done: bool | None = None
-
 # Update a task by ID (title and/or done).
 @app.patch("/api/tasks/{task_id}", response_model=TaskRead)
 def update_task(task_id: str, payload: TaskUpdate, db: Session = Depends(get_db)):

@@ -9,3 +9,5 @@ app/frontend/.vite
 
 #Remove later 
 /app/backend/tinytasks.db 
+
+.vscode/

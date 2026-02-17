@@ -19,7 +19,7 @@ export async function fetchTasks(): Promise<Task[]> {
 }
 
 
-// Create a new task (POST /api/tasks/:id)
+// Create a new task (POST /api/tasks/)
 export async function createTask(title: string): Promise<Task> {
   const res = await fetch(`/api/tasks`, {
     method: "POST",

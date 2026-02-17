@@ -214,7 +214,7 @@ export default function App() {
   <div className="min-h-screen flex justify-center bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
     <div className="mx-auto w-full max-w-2xl px-6 py-10 font-sans rounded-xl shadow-lg bg-white dark:bg-gray-800">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">TinyTasks — Tasks</h1>
+          <h1 className="text-2xl font-semibold">TinyTasks</h1>
 
           {/* Dark mode toggle */}
           <button
