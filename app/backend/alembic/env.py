@@ -17,7 +17,8 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 # --- Import SQLAlchemy Base metadata from our project models ---
-from src.models import Base  # noqa
+from src.db import Base  # noqa
+from src import models # noqa
 
 # Alembic Config object provides access to the .ini file values
 config = context.config
