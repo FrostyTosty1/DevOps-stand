@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { Dispatch, SetStateAction, FormEvent } from "react";
 import {
   fetchTasks,
@@ -42,6 +42,18 @@ export default function App() {
   const [appeared, setAppeared] = useState<Set<string>>(new Set());       // items that finished appear animation
   const [deletingVisual, setDeletingVisual] = useState<Set<string>>(new Set()); // items currently fading out
 
+  const deleteTimeoutsRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      // cleanup on unmount
+      for (const t of deleteTimeoutsRef.current) {
+        window.clearTimeout(t);
+      }
+      deleteTimeoutsRef.current.clear();
+    };
+  }, []);
+
   useEffect(() => {
     // Load tasks on first render
     fetchTasks()
@@ -67,14 +79,14 @@ export default function App() {
     }
     if (idsToSchedule.length > 0) {
       // Next tick to allow initial render with opacity-0/translate-y
-      const t = setTimeout(() => {
+      const t = window.setTimeout(() => {
         setAppeared((prev) => {
           const next = new Set(prev);
           idsToSchedule.forEach((id) => next.add(id));
           return next;
         });
       }, 0);
-      return () => clearTimeout(t);
+      return () => window.clearTimeout(t);
     }
   }, [tasks, appeared]);
 
@@ -155,7 +167,7 @@ export default function App() {
         setDeletingVisual((prev) => new Set(prev).add(task.id));
 
         // After the CSS transition ends (~180ms), remove from list
-        setTimeout(() => {
+        const t = window.setTimeout(() => {
           setTasks((prev) => prev.filter((t) => t.id !== task.id));
           setDeletingVisual((prev) => {
             const next = new Set(prev);
@@ -169,7 +181,13 @@ export default function App() {
             next.delete(task.id);
             return next;
           });
+
+          // cleanup timeout id after it fires
+          deleteTimeoutsRef.current.delete(t);
         }, 180); // matches transition duration
+
+        // register timeout for cleanup on unmount
+        deleteTimeoutsRef.current.add(t);
       } catch (err) {
         console.error(err);
         alert("Failed to delete task");
