@@ -39,7 +39,7 @@ export default function App() {
   });
 
   // Visual animation states (safe, no hooks inside .map)
-  const [appeared, setAppeared] = useState<Set<string>>(new Set());       // items that finished appear animation
+  const [appeared, setAppeared] = useState<Set<string>>(new Set()); // items that finished appear animation
   const [deletingVisual, setDeletingVisual] = useState<Set<string>>(new Set()); // items currently fading out
 
   const deleteTimeoutsRef = useRef<Set<number>>(new Set());
@@ -111,6 +111,7 @@ export default function App() {
     e.preventDefault();
     const title = newTitle.trim();
     if (!title || adding) return; // ignore empty input or while pending
+    setError(null);
     setAdding(true);
     try {
       const created = await createTask(title);
@@ -125,7 +126,7 @@ export default function App() {
       });
     } catch (err) {
       console.error(err);
-      alert("Failed to create task");
+      setError("Failed to create task");
     } finally {
       setAdding(false);
     }
@@ -134,6 +135,7 @@ export default function App() {
   // Toggle 'done' flag via PATCH /api/tasks/:id
   async function handleToggle(task: Task) {
     if (pendingToggle.has(task.id)) return; // already in-flight
+    setError(null);
     await withId(setPendingToggle, task.id, async () => {
       try {
         const updated = await toggleTaskDone(task.id, !task.done);
@@ -141,7 +143,7 @@ export default function App() {
         setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
       } catch (err) {
         console.error(err);
-        alert("Failed to update task status");
+        setError("Failed to update task status");
       }
     });
   }
@@ -150,6 +152,7 @@ export default function App() {
   async function handleDelete(task: Task) {
     if (pendingDelete.has(task.id)) return;
     if (!confirm(`Delete task "${task.title}"?`)) return;
+    setError(null);
 
     const wasEditingThis = editingId === task.id; // snapshot to avoid stale closure
 
@@ -190,7 +193,7 @@ export default function App() {
         deleteTimeoutsRef.current.add(t);
       } catch (err) {
         console.error(err);
-        alert("Failed to delete task");
+        setError("Failed to delete task");
       }
     });
   }
@@ -211,6 +214,7 @@ export default function App() {
   async function saveEdit(task: Task) {
     const title = editingTitle.trim();
     if (!title || pendingSave.has(task.id)) return; // ignore empty/whitespace-only or while pending
+    setError(null);
     await withId(setPendingSave, task.id, async () => {
       try {
         const updated = await updateTaskTitle(task.id, title);
@@ -219,13 +223,12 @@ export default function App() {
         setEditingTitle("");
       } catch (err) {
         console.error(err);
-        alert("Failed to update title");
+        setError("Failed to update title");
       }
     });
   }
 
   if (loading) return <div className="p-4">Loading…</div>;
-  if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
 
   // Apply client-side filtering before render
   const visibleTasks = tasks.filter((t) =>
@@ -233,9 +236,21 @@ export default function App() {
   );
 
   return (
-    
-  <div className="min-h-screen flex justify-center bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-    <div className="mx-auto w-full max-w-2xl px-6 py-10 font-sans rounded-xl shadow-lg bg-white dark:bg-gray-800">
+    <div className="min-h-screen flex justify-center bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+      <div className="mx-auto w-full max-w-2xl px-6 py-10 font-sans rounded-xl shadow-lg bg-white dark:bg-gray-800">
+        {error && (
+          <div className="mb-4 flex items-center justify-between rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200">
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="ml-4 text-red-700 hover:underline dark:text-red-200"
+              title="Dismiss error"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-semibold">TinyTasks</h1>
 
@@ -312,7 +327,9 @@ export default function App() {
         {visibleTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-gray-600 dark:text-gray-400">
             {/* Emoji as temporary "icon" — later can replace with an SVG */}
-            <div className="text-6xl mb-3">{tasks.length === 0 ? "📝" : "🎉"}</div>
+            <div className="text-6xl mb-3">
+              {tasks.length === 0 ? "📝" : "🎉"}
+            </div>
 
             {tasks.length === 0 ? (
               <>
@@ -323,7 +340,9 @@ export default function App() {
               </>
             ) : (
               <>
-                <p className="text-lg font-medium mb-1">All tasks completed!</p>
+                <p className="text-lg font-medium mb-1">
+                  All tasks completed!
+                </p>
                 <p className="text-sm text-gray-500 dark:text-gray-500">
                   Take a break, you deserve it ☕
                 </p>
@@ -348,9 +367,19 @@ export default function App() {
                   className={`flex items-center justify-between gap-2 rounded-lg border p-3
                     border-gray-200 dark:border-gray-700
                     transition-all duration-200
-                    ${t.done ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-white dark:bg-gray-800"}
-                    ${isAppeared ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}
-                    ${isFadingOut ? "opacity-0 scale-[0.98] translate-y-1" : ""}
+                    ${
+                      t.done
+                        ? "bg-emerald-50 dark:bg-emerald-900/20"
+                        : "bg-white dark:bg-gray-800"
+                    }
+                    ${
+                      isAppeared
+                        ? "opacity-100 translate-y-0"
+                        : "opacity-0 translate-y-2"
+                    }
+                    ${
+                      isFadingOut ? "opacity-0 scale-[0.98] translate-y-1" : ""
+                    }
                   `}
                 >
                   <span className="min-w-0">
