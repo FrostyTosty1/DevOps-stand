@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Dispatch, SetStateAction, FormEvent } from "react";
 import {
   fetchTasks,
   createTask,
@@ -79,7 +80,7 @@ export default function App() {
 
   // Small helper: run async action while adding/removing id to a Set state
   function withId<T extends string>(
-    setState: React.Dispatch<React.SetStateAction<Set<T>>>,
+    setState: Dispatch<SetStateAction<Set<T>>>,
     id: T,
     fn: () => Promise<void>
   ) {
@@ -94,7 +95,7 @@ export default function App() {
   }
 
   // Handle form submit: create a task via POST /api/tasks
-  async function handleAddTask(e: React.FormEvent) {
+  async function handleAddTask(e: FormEvent) {
     e.preventDefault();
     const title = newTitle.trim();
     if (!title || adding) return; // ignore empty input or while pending
