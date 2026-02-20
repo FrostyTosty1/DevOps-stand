@@ -139,9 +139,17 @@ export default function App() {
     if (pendingDelete.has(task.id)) return;
     if (!confirm(`Delete task "${task.title}"?`)) return;
 
+    const wasEditingThis = editingId === task.id; // snapshot to avoid stale closure
+
     await withId(setPendingDelete, task.id, async () => {
       try {
         await deleteTask(task.id);
+
+        // Reset edit state based on snapshot (not inside setTimeout)
+        if (wasEditingThis) {
+          setEditingId(null);
+          setEditingTitle("");
+        }
 
         // Trigger gentle fade-out first
         setDeletingVisual((prev) => new Set(prev).add(task.id));
@@ -154,11 +162,7 @@ export default function App() {
             next.delete(task.id);
             return next;
           });
-          // Reset edit state if needed
-          if (editingId === task.id) {
-            setEditingId(null);
-            setEditingTitle("");
-          }
+
           // Also cleanup "appeared" set
           setAppeared((prev) => {
             const next = new Set(prev);
