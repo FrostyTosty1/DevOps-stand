@@ -9,12 +9,15 @@ load_dotenv()
 # Database connection URL
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set. Configure it via environment variable.")
+    DATABASE_URL = "sqlite:///./dev.db"
+
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
 # Create SQLAlchemy engine
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
+    connect_args=connect_args,
 )
 
 # Factory for database sessions (commit/rollback controlled manually)
