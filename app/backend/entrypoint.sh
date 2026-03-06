@@ -1,37 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+DB_WAIT_RETRIES="${DB_WAIT_RETRIES:-30}"
+DB_WAIT_DELAY="${DB_WAIT_DELAY:-1}"
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-1}"
+
 # --- Wait for DB if it's Postgres ---
-# Skip if DATABASE_URL is SQLite
 if [[ "${DATABASE_URL:-}" =~ ^postgres ]]; then
-  echo "[entrypoint] Waiting for Postgres at ${DATABASE_URL}"
-  # naive wait: try psql for up to ~30s
-  for i in {1..30}; do
-    if python - <<'PY'
-import os, sys
+  echo "[entrypoint] Waiting for Postgres..."
+
+  python - <<'PY'
+import os, sys, time
 from sqlalchemy import create_engine, text
-url = os.environ.get("DATABASE_URL")
-try:
-    e = create_engine(url, pool_pre_ping=True, future=True)
-    with e.connect() as c:
-        c.execute(text("SELECT 1"))
-    sys.exit(0)
-except Exception as ex:
-    sys.exit(1)
+
+url = os.environ.get("DATABASE_URL", "")
+retries = int(os.environ.get("DB_WAIT_RETRIES", "30"))
+delay = float(os.environ.get("DB_WAIT_DELAY", "1"))
+
+engine = create_engine(url, pool_pre_ping=True, future=True)
+
+for i in range(1, retries + 1):
+    try:
+        with engine.connect() as c:
+            c.execute(text("SELECT 1"))
+        print(f"[entrypoint] DB is reachable (attempt {i}/{retries})")
+        sys.exit(0)
+    except Exception:
+        print(f"[entrypoint] DB not ready yet (attempt {i}/{retries}), retrying in {delay}s...")
+        time.sleep(delay)
+
+print(f"[entrypoint] ERROR: DB still unreachable after {retries} attempts")
+sys.exit(1)
 PY
-    then
-      echo "[entrypoint] DB is reachable"
-      break
-    else
-      echo "[entrypoint] DB not ready yet, retrying..."
-      sleep 1
-    fi
-  done
 fi
 
-# --- Run migrations ---
-echo "[entrypoint] Running Alembic migrations..."
-alembic upgrade head
+# --- Run migrations (optional) ---
+if [[ "$RUN_MIGRATIONS" == "1" ]]; then
+  echo "[entrypoint] Running Alembic migrations..."
+  alembic upgrade head
+  echo "[entrypoint] Migrations complete"
+else
+  echo "[entrypoint] Skipping migrations (RUN_MIGRATIONS=$RUN_MIGRATIONS)"
+fi
 
 # --- Start app ---
 echo "[entrypoint] Starting Uvicorn..."
