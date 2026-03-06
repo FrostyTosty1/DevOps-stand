@@ -14,7 +14,7 @@ COPY requirements.txt /app/requirements.txt
 #  && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip \
- && pip wheel --no-cache-dir --no-deps -r requirements.txt -w /wheels
+ && pip wheel --no-cache-dir -r /app/requirements.txt -w /wheels
 
 # ---------- Runtime: minimal image + curl for debugging/healthchecks ----------
 FROM python:3.12-slim AS runtime
@@ -35,23 +35,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps from prebuilt wheels
+COPY requirements.txt /app/requirements.txt
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r /app/requirements.txt \
+ && rm -rf /wheels
 
 # App sources (no .env baked in)
-COPY src ./src
-COPY alembic ./alembic
-COPY alembic.ini ./
-COPY entrypoint.sh ./entrypoint.sh
-
-# Ensure entrypoint is executable
-RUN chmod +x /app/entrypoint.sh
+COPY --chown=appuser:appuser src ./src
+COPY --chown=appuser:appuser alembic ./alembic
+COPY --chown=appuser:appuser alembic.ini ./
+COPY --chown=appuser:appuser --chmod=755 entrypoint.sh ./entrypoint.sh
 
 # Expose API port
 EXPOSE 8080
 
 # Healthcheck using curl (hits /healthz)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
   CMD sh -c "curl -fsS http://127.0.0.1:8080/healthz > /dev/null || exit 1"
 
 USER appuser
