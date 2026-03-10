@@ -17,7 +17,7 @@ class TaskCreate(BaseModel):
 
 class TaskUpdate(BaseModel):
     # Schema for updating a task (partial)."""
-    title: str | None = None
+    title: str | None = Field(default=None, max_length=140)
     done: bool | None = None
 
     # If title is provided, validate like in TaskCreate
