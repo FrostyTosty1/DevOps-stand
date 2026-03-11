@@ -16,7 +16,7 @@ class Task(Base):
     )
 
     # Task title (max length validated by Pydantic schema)
-    title: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String(140), nullable=False)
 
     # Completion flag
     done: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
