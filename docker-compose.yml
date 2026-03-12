@@ -18,7 +18,7 @@ services:
       - "5432:5432"   
   backend:
     build:
-      context: .
+      context: ./app/backend
       dockerfile: Dockerfile
     image: tinytasks-backend:dev
     container_name: tinytasks-backend
@@ -33,7 +33,7 @@ services:
       - "8080:8080"   
   frontend:
     build:
-      context: ../frontend
+      context: ./app/frontend
       dockerfile: Dockerfile
     image: tinytasks-frontend:dev
     container_name: tinytasks-frontend

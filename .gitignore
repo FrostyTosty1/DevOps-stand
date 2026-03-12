@@ -4,7 +4,7 @@
 /app/backend/alembic/__pycache__
 /app/backend/alembic/versions/__pycache__
 /app/backend/alembic/*.log
-/app/backend/.env
+.env
 
 /app/frontend/.vite
 
