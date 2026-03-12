@@ -1,16 +1,13 @@
-from time import perf_counter
-
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, Request, Response, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse, PlainTextResponse
-from fastapi.middleware.cors import CORSMiddleware
-
-from sqlalchemy.orm import Session
-
+from time import perf_counter
 from typing import Optional
 
-from src.db import check_db, get_db, init_db_schema, DATABASE_URL
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy.orm import Session
+
+from src.db import DATABASE_URL, check_db, get_db, init_db_schema
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 from src.models import Task
 from src.schemas import TaskCreate, TaskRead, TaskUpdate

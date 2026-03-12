@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import os
 import sys
-from pathlib import Path
 from logging.config import fileConfig
+from pathlib import Path
 
-from sqlalchemy import engine_from_config, pool, create_engine
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+
 from alembic import context
-from dotenv import load_dotenv 
 
 load_dotenv()  
 
