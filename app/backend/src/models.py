@@ -1,10 +1,11 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import String, Boolean, DateTime, func
+from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.db import Base
+
 
 class Task(Base):
     # ORM model for tasks table
@@ -16,7 +17,7 @@ class Task(Base):
     )
 
     # Task title (max length validated by Pydantic schema)
-    title: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String(140), nullable=False)
 
     # Completion flag
     done: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

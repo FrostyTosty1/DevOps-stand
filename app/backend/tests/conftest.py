@@ -1,10 +1,14 @@
-import os, tempfile, pytest
+import os
+import tempfile
+
+import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from fastapi.testclient import TestClient
 
-from src.main import app
 from src.db import Base, get_db
+from src.main import app
+
 
 @pytest.fixture
 def client():
@@ -35,5 +39,7 @@ def client():
             yield c
     finally:
         app.dependency_overrides.clear()
-        try: os.remove(path)
-        except FileNotFoundError: pass
+        try: 
+            os.remove(path)
+        except FileNotFoundError: 
+            pass

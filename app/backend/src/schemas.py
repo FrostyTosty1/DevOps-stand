@@ -1,5 +1,7 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 
 class TaskCreate(BaseModel):
     # Schema for creating a new task (input)
@@ -17,7 +19,7 @@ class TaskCreate(BaseModel):
 
 class TaskUpdate(BaseModel):
     # Schema for updating a task (partial)."""
-    title: str | None = None
+    title: str | None = Field(default=None, max_length=140)
     done: bool | None = None
 
     # If title is provided, validate like in TaskCreate
