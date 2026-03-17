@@ -1,14 +1,13 @@
 from prometheus_client import Counter, Histogram, generate_latest
 
-# Total HTTP requests (by method, path, status)
+# Total HTTP requests by method, path, and status.
 REQUEST_COUNT = Counter(
     "http_requests_total",
     "Total HTTP requests",
     ["method", "path", "status"],
 )
 
-
-# HTTP request latency (by method, path) with predefined buckets
+# Request latency histogram by method and path.
 REQUEST_LATENCY = Histogram(
     "http_request_duration_seconds",
     "HTTP request latency",
@@ -16,6 +15,6 @@ REQUEST_LATENCY = Histogram(
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5),
 )
 
-# Return metrics in Prometheus text format for /metrics endpoint
+# Render metrics in Prometheus text format.
 def prometheus_app():
     return generate_latest().decode("utf-8")

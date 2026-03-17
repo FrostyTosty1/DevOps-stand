@@ -16,13 +16,13 @@ class Task(Base):
         String(36), primary_key=True, default=lambda: str(uuid4())
     )
 
-    # Task title (max length validated by Pydantic schema)
+    # Title length is validated at the API/schema layer.
     title: Mapped[str] = mapped_column(String(140), nullable=False)
 
     # Completion flag
     done: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    # Timestamps (server-side defaults)
+    # Server-side timestamps.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

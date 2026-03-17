@@ -33,7 +33,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Database URL: read from environment or fallback to local SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tinytasks.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
 
 
 def run_migrations_offline() -> None:
