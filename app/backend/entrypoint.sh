@@ -5,7 +5,7 @@ DB_WAIT_RETRIES="${DB_WAIT_RETRIES:-30}"
 DB_WAIT_DELAY="${DB_WAIT_DELAY:-1}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-1}"
 
-# --- Wait for DB if it's Postgres ---
+# --- Wait for Postgres if DATABASE_URL points to a Postgres instance ---
 if [[ "${DATABASE_URL:-}" =~ ^postgres ]]; then
   echo "[entrypoint] Waiting for Postgres..."
 

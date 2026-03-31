@@ -37,10 +37,7 @@ app.add_middleware(
     allow_headers=["*"],           # allow all headers
 )
 
-# Prometheus metrics middleware
-# This middleware intercepts every HTTP request/response,
-# measures request duration (latency), extracts method, path and status,
-# and updates Prometheus counters and histograms accordingly.
+# Record request count and latency for Prometheus.
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     start = perf_counter()
@@ -56,15 +53,13 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 # Health check endpoint
-# Used by orchestrators (Kubernetes, Docker, load balancers)
-# to verify that the service is alive and responding.
+# Verify that the service is alive and responding.
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
 
 # Database health check endpoint.
-# For now: returns a placeholder response.
-# Later: will actually ping PostgreSQL.
+# Executes a simple query to verify database connectivity.
 @app.get("/db/healthz")
 def db_healthz():
     check_db()
@@ -72,14 +67,12 @@ def db_healthz():
 
 # Prometheus metrics endpoint
 # Exposes collected application metrics in plain text format
-# so that Prometheus can scrape them periodically.
 @app.get("/metrics")
 def metrics():
     return PlainTextResponse(prometheus_app(), media_type="text/plain")
 
 # Root endpoint
-# Provides basic service information (name and version)
-# for quick identification or debugging.
+# Basic service info.
 @app.get("/")
 def root():
     return JSONResponse({"service": SERVICE_NAME, "version": SERVICE_VERSION})

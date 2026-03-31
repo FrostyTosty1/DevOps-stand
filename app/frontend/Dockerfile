@@ -3,28 +3,19 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copy dependency manifests first to leverage Docker layer caching
+# Copy dependency manifests first to maximize cache reuse.
 COPY package.json package-lock.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy source files
 COPY . .
-
-# Build app
 RUN npm run build
 
 # ---------- Runtime stage: Nginx to serve static ----------
 FROM nginx:1.27-alpine AS runtime
 
-# Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copy built static files
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Expose HTTP port
 EXPOSE 80
 
 # Healthcheck: static index should be served

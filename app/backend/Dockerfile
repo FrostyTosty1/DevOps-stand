@@ -9,10 +9,6 @@ WORKDIR /app
 # Copy only requirements first to leverage Docker layer caching
 COPY requirements.txt /app/requirements.txt
 
-# If your requirements include native extensions, you can install build tools:
-# RUN apt-get update && apt-get install -y --no-install-recommends build-essential gcc \
-#  && rm -rf /var/lib/apt/lists/*
-
 RUN pip install --upgrade pip \
  && pip wheel --no-cache-dir -r /app/requirements.txt -w /wheels
 

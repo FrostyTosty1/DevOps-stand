@@ -4,10 +4,10 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-# Load environment variables from .env (for dev and local runs)
+# Load variables from .env if present (useful for local development).
 load_dotenv()
 
-# Database connection URL
+# Fall back to local SQLite when DATABASE_URL is not provided.
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     DATABASE_URL = "sqlite:///./dev.db"
@@ -21,14 +21,13 @@ engine = create_engine(
     connect_args=connect_args,
 )
 
-# Factory for database sessions (commit/rollback controlled manually)
+# Session factory; request handlers manage commit/rollback explicitly.
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
 
-# Base class for all ORM models (tables inherit from this)
 class Base(DeclarativeBase):
     pass
 
-# FastAPI dependency: provide a DB session per request
+# FastAPI dependency that provides one DB session per request.
 def get_db() -> Session:
     db: Session = SessionLocal()
     try:
@@ -36,13 +35,13 @@ def get_db() -> Session:
     finally:
         db.close()
 
-# Simple DB health check (executes SELECT 1)
+# Minimal connectivity check used by /db/healthz.
 def check_db() -> bool:
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
     return True
 
-# Optional: create tables defined by ORM models (for dev only)
+# Create tables directly from ORM metadata for local SQLite runs only.
 def init_db_schema() -> None:
-    # In production, Alembic should handle migrations instead of this
+    # Postgres environments should use Alembic migrations instead.
     Base.metadata.create_all(bind=engine)

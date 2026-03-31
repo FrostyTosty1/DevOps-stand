@@ -9,28 +9,36 @@ import {
   type Task,
 } from "./api";
 
-// Top-level component: fetch and render tasks from the backend.
 export default function App() {
-  // UI state: loading, error, and fetched tasks
+  // Main UI state:
+  // - loading: initial data is still being fetched
+  // - error: last user-visible error message
+  // - tasks: tasks received from the backend
+  // - newTitle: text from the "new task" input field
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [newTitle, setNewTitle] = useState(""); // input state for new task
+  const [newTitle, setNewTitle] = useState("");
 
-  // Inline edit state for a single task
+  // Inline edit state for one task at a time:
+  // - editingId: which task is currently being edited
+  // - editingTitle: current text inside the edit input
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
 
-  // Pending flags to avoid double-clicks and show progress
-  const [adding, setAdding] = useState(false); // for Add form
+  // Pending operation flags.
+  // These help prevent duplicate clicks while a request is already in flight.
+  const [adding, setAdding] = useState(false);
   const [pendingToggle, setPendingToggle] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set());
   const [pendingSave, setPendingSave] = useState<Set<string>>(new Set());
 
-  // Client-side filter state: all / open / done
+  // Client-side filter for the already loaded task list.
   const [filter, setFilter] = useState<"all" | "open" | "done">("all");
 
-  // Dark mode state (persist to localStorage and toggle <html>.classList)
+  // Dark mode preference:
+  // 1) first try localStorage
+  // 2) otherwise fall back to the OS/browser preference
   const [dark, setDark] = useState<boolean>(() => {
     const saved = localStorage.getItem("tt.dark");
     if (saved === "true") return true;
@@ -38,15 +46,19 @@ export default function App() {
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
   });
 
-  // Visual animation states (safe, no hooks inside .map)
-  const [appeared, setAppeared] = useState<Set<string>>(new Set()); // items that finished appear animation
-  const [deletingVisual, setDeletingVisual] = useState<Set<string>>(new Set()); // items currently fading out
+  // Visual state used only for CSS animations:
+  // - appeared: tasks that have already finished the "appear" animation
+  // - deletingVisual: tasks that are currently fading out before removal
+  const [appeared, setAppeared] = useState<Set<string>>(new Set());
+  const [deletingVisual, setDeletingVisual] = useState<Set<string>>(new Set());
 
+  // Store delete-animation timers so they can be cleared on unmount.
   const deleteTimeoutsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     return () => {
-      // cleanup on unmount
+      // Clear pending delete timers when the component unmounts
+      // to avoid updating state after the component is gone.
       for (const t of deleteTimeoutsRef.current) {
         window.clearTimeout(t);
       }
@@ -55,7 +67,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Load tasks on first render
+    // Load tasks once, when the component is mounted for the first time.
     fetchTasks()
       .then(setTasks)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
@@ -63,7 +75,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Apply/remove `dark` class on <html>, persist choice
+    // Keep the <html> element and localStorage in sync with the current theme.
     const root = document.documentElement;
     if (dark) root.classList.add("dark");
     else root.classList.remove("dark");
@@ -71,14 +83,16 @@ export default function App() {
   }, [dark]);
 
   useEffect(() => {
-    // Mark newly seen tasks as "appearing" → next tick they become "appeared"
-    // This gives fade/slide-in without per-item hooks.
+    // Any task that is present in `tasks` but missing from `appeared`
+    // is treated as "new" for animation purposes.
     const idsToSchedule: string[] = [];
     for (const t of tasks) {
       if (!appeared.has(t.id)) idsToSchedule.push(t.id);
     }
+
     if (idsToSchedule.length > 0) {
-      // Next tick to allow initial render with opacity-0/translate-y
+      // Wait one tick so the initial hidden classes are rendered first,
+      // then mark the tasks as appeared and let CSS animate them in.
       const t = window.setTimeout(() => {
         setAppeared((prev) => {
           const next = new Set(prev);
@@ -86,11 +100,14 @@ export default function App() {
           return next;
         });
       }, 0);
+
       return () => window.clearTimeout(t);
     }
   }, [tasks, appeared]);
 
-  // Small helper: run async action while adding/removing id to a Set state
+  // Helper for operations tracked by task id.
+  // It adds the id to a Set before the async work starts,
+  // and removes it when the work finishes.
   function withId<T extends string>(
     setState: Dispatch<SetStateAction<Set<T>>>,
     id: T,
@@ -106,22 +123,30 @@ export default function App() {
     });
   }
 
-  // Handle form submit: create a task via POST /api/tasks
+  // Create a new task from the form input.
   async function handleAddTask(e: FormEvent) {
     e.preventDefault();
+
     const title = newTitle.trim();
-    if (!title || adding) return; // ignore empty input or while pending
+    if (!title || adding) return; // Ignore empty input and duplicate submits.
+
     setError(null);
     setAdding(true);
+
     try {
       const created = await createTask(title);
-      // Prepend newly created task to the list (no full refetch needed)
+
+      // Add the new task locally instead of re-fetching the whole list.
       setTasks((prev) => [created, ...prev]);
-      setNewTitle(""); // clear input
-      // Ensure newly added item runs appear animation
+
+      // Clear the input after successful creation.
+      setNewTitle("");
+
+      // Remove the id from `appeared` so the new item can run its
+      // appear animation on the next effect pass.
       setAppeared((prev) => {
         const next = new Set(prev);
-        next.delete(created.id); // force it to start from hidden state for the next effect
+        next.delete(created.id);
         return next;
       });
     } catch (err) {
@@ -132,14 +157,17 @@ export default function App() {
     }
   }
 
-  // Toggle 'done' flag via PATCH /api/tasks/:id
+  // Toggle the "done" state of a task.
   async function handleToggle(task: Task) {
-    if (pendingToggle.has(task.id)) return; // already in-flight
+    if (pendingToggle.has(task.id)) return; // Prevent duplicate requests.
+
     setError(null);
+
     await withId(setPendingToggle, task.id, async () => {
       try {
         const updated = await toggleTaskDone(task.id, !task.done);
-        // Update item in place
+
+        // Replace only the updated task in the current list.
         setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
       } catch (err) {
         console.error(err);
@@ -148,48 +176,54 @@ export default function App() {
     });
   }
 
-  // Delete a task via DELETE /api/tasks/:id (with gentle fade-out)
+  // Delete a task.
+  // Removal from the list is delayed a bit so the fade-out animation can play first.
   async function handleDelete(task: Task) {
     if (pendingDelete.has(task.id)) return;
     if (!confirm(`Delete task "${task.title}"?`)) return;
+
     setError(null);
 
-    const wasEditingThis = editingId === task.id; // snapshot to avoid stale closure
+    // Save whether this task was being edited before the async work starts.
+    // This avoids relying on state later inside the timeout callback.
+    const wasEditingThis = editingId === task.id;
 
     await withId(setPendingDelete, task.id, async () => {
       try {
         await deleteTask(task.id);
 
-        // Reset edit state based on snapshot (not inside setTimeout)
+        // If the deleted task was in edit mode, clear edit state immediately.
         if (wasEditingThis) {
           setEditingId(null);
           setEditingTitle("");
         }
 
-        // Trigger gentle fade-out first
+        // Start the visual fade-out before actually removing the item from state.
         setDeletingVisual((prev) => new Set(prev).add(task.id));
 
-        // After the CSS transition ends (~180ms), remove from list
+        // Remove the task after the CSS transition finishes.
         const t = window.setTimeout(() => {
           setTasks((prev) => prev.filter((t) => t.id !== task.id));
+
           setDeletingVisual((prev) => {
             const next = new Set(prev);
             next.delete(task.id);
             return next;
           });
 
-          // Also cleanup "appeared" set
+          // Also remove the id from the appear-tracking set
+          // because this task no longer exists in the list.
           setAppeared((prev) => {
             const next = new Set(prev);
             next.delete(task.id);
             return next;
           });
 
-          // cleanup timeout id after it fires
+          // Delete the timer id from the registry after it has fired.
           deleteTimeoutsRef.current.delete(t);
-        }, 180); // matches transition duration
+        }, 180); // Keep this in sync with the CSS transition duration.
 
-        // register timeout for cleanup on unmount
+        // Remember the timer so it can be cleared on unmount.
         deleteTimeoutsRef.current.add(t);
       } catch (err) {
         console.error(err);
@@ -198,26 +232,30 @@ export default function App() {
     });
   }
 
-  // Start inline editing for a task
+  // Enter inline edit mode for one task.
   function startEdit(task: Task) {
     setEditingId(task.id);
     setEditingTitle(task.title);
   }
 
-  // Cancel inline editing
+  // Leave inline edit mode without saving changes.
   function cancelEdit() {
     setEditingId(null);
     setEditingTitle("");
   }
 
-  // Save new title via PATCH /api/tasks/:id
+  // Save the edited task title.
   async function saveEdit(task: Task) {
     const title = editingTitle.trim();
-    if (!title || pendingSave.has(task.id)) return; // ignore empty/whitespace-only or while pending
+    if (!title || pendingSave.has(task.id)) return; // Ignore empty titles and duplicate saves.
+
     setError(null);
+
     await withId(setPendingSave, task.id, async () => {
       try {
         const updated = await updateTaskTitle(task.id, title);
+
+        // Replace only the updated task and exit edit mode.
         setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
         setEditingId(null);
         setEditingTitle("");
@@ -230,7 +268,7 @@ export default function App() {
 
   if (loading) return <div className="p-4">Loading…</div>;
 
-  // Apply client-side filtering before render
+  // Apply the selected filter before rendering the list.
   const visibleTasks = tasks.filter((t) =>
     filter === "all" ? true : filter === "done" ? t.done : !t.done
   );
@@ -254,7 +292,7 @@ export default function App() {
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-semibold">TinyTasks</h1>
 
-          {/* Dark mode toggle */}
+          {/* Toggle the persisted dark/light theme. */}
           <button
             onClick={() => setDark((d) => !d)}
             className={`rounded-md px-3 py-1.5 text-sm transition focus:outline-none focus:ring-2 ${
@@ -268,7 +306,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Filter controls: All / Open / Done */}
+        {/* Filter buttons for the already loaded tasks. */}
         <div className="mb-4 flex gap-2">
           <button
             onClick={() => setFilter("all")}
@@ -302,7 +340,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Minimal input + button form to create a task */}
+        {/* Form for creating a new task. */}
         <form onSubmit={handleAddTask} className="mb-4 flex gap-2">
           <input
             type="text"
@@ -326,7 +364,7 @@ export default function App() {
 
         {visibleTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-gray-600 dark:text-gray-400">
-            {/* Emoji as temporary "icon" — later can replace with an SVG */}
+            {/* Simple empty-state icon. */}
             <div className="text-6xl mb-3">
               {tasks.length === 0 ? "📝" : "🎉"}
             </div>
@@ -357,7 +395,7 @@ export default function App() {
               const isDeleting = pendingDelete.has(t.id);
               const isSaving = pendingSave.has(t.id);
 
-              // Animation flags
+              // Flags used only for CSS animation classes.
               const isAppeared = appeared.has(t.id);
               const isFadingOut = deletingVisual.has(t.id);
 

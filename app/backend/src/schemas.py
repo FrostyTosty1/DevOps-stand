@@ -4,10 +4,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TaskCreate(BaseModel):
-    # Schema for creating a new task (input)
+    # Schema for creating a new task (input).
     title: str = Field(min_length=1, max_length=140)
     
-    # Trim whitespace and forbid empty titles after trimming
+    # Trim whitespace and reject titles that become empty after trimming.
     @field_validator("title")
     @classmethod
     def normalize_title(cls, v: str) -> str:
@@ -18,11 +18,11 @@ class TaskCreate(BaseModel):
     
 
 class TaskUpdate(BaseModel):
-    # Schema for updating a task (partial)."""
+    # Schema for updating a task (partial).
     title: str | None = Field(default=None, max_length=140)
     done: bool | None = None
 
-    # If title is provided, validate like in TaskCreate
+    # Reuse TaskCreate-style title validation when title is provided.
     @field_validator("title")
     @classmethod
     def normalize_title(cls, v: str | None) -> str | None:
@@ -34,7 +34,7 @@ class TaskUpdate(BaseModel):
         return v
 
 class TaskRead(BaseModel):
-    # Schema for reading task data (output)."""
+    # Schema for reading task data (output).
     id: str
     title: str
     done: bool
