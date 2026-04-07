@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from "react";
-import type { Dispatch, SetStateAction, FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Dispatch, FormEvent, SetStateAction } from "react";
+
 import {
-  fetchTasks,
   createTask,
-  toggleTaskDone,
   deleteTask,
+  fetchTasks,
+  toggleTaskDone,
   updateTaskTitle,
   type Task,
 } from "./api";
@@ -56,13 +57,15 @@ export default function App() {
   const deleteTimeoutsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
+    const deleteTimeouts = deleteTimeoutsRef.current;
+
     return () => {
       // Clear pending delete timers when the component unmounts
       // to avoid updating state after the component is gone.
-      for (const t of deleteTimeoutsRef.current) {
+      for (const t of deleteTimeouts) {
         window.clearTimeout(t);
       }
-      deleteTimeoutsRef.current.clear();
+      deleteTimeouts.clear();
     };
   }, []);
 
@@ -365,9 +368,7 @@ export default function App() {
         {visibleTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-gray-600 dark:text-gray-400">
             {/* Simple empty-state icon. */}
-            <div className="text-6xl mb-3">
-              {tasks.length === 0 ? "📝" : "🎉"}
-            </div>
+            <div className="text-6xl mb-3">{tasks.length === 0 ? "📝" : "🎉"}</div>
 
             {tasks.length === 0 ? (
               <>
@@ -378,9 +379,7 @@ export default function App() {
               </>
             ) : (
               <>
-                <p className="text-lg font-medium mb-1">
-                  All tasks completed!
-                </p>
+                <p className="text-lg font-medium mb-1">All tasks completed!</p>
                 <p className="text-sm text-gray-500 dark:text-gray-500">
                   Take a break, you deserve it ☕
                 </p>
@@ -486,8 +485,8 @@ export default function App() {
                         isToggling
                           ? "bg-gray-200 text-gray-400 cursor-wait"
                           : t.done
-                          ? "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
-                          : "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-300"
+                            ? "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+                            : "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-300"
                       }`}
                       title={t.done ? "Undo" : "Mark as done"}
                     >
