@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from time import perf_counter
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
@@ -101,12 +101,20 @@ def root():
 
 
 # Create a new task in DB.
-@app.post("/api/tasks", response_model=TaskRead)
-def create_task(payload: TaskCreate, db: Session = Depends(get_db)):
+@app.post("/api/tasks", response_model=TaskRead, status_code=201)
+def create_task(
+    payload: TaskCreate,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     task = Task(title=payload.title)
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # Set Location header to the newly created resource
+    response.headers["Location"] = f"/api/tasks/{task.id}"
+
     return task
 
 
