@@ -56,8 +56,8 @@ def test_create_task_success(client):
     payload = {"title": "Buy milk"}
     response = client.post("/api/tasks", json=payload)
 
-    # Assert: should return 200 OK (FastAPI default)
-    assert response.status_code == 200
+    # Assert: should return 201 Created
+    assert response.status_code == 201
 
     data = response.json()
 
@@ -67,6 +67,9 @@ def test_create_task_success(client):
     assert data["done"] is False
     assert "created_at" in data
     assert "updated_at" in data
+
+    # Assert: Location header points to the created resource
+    assert response.headers["Location"] == f"/api/tasks/{data['id']}"
 
 
 def test_create_task_invalid(client):
@@ -97,6 +100,16 @@ def test_get_task_by_id(client):
     # Assert: returned task matches created task
     assert data["id"] == tid
     assert data["title"] == "Find me"
+
+
+def test_get_task_not_found(client):
+    # Use valid but non-existent task id
+    missing_id = "00000000-0000-0000-0000-000000000000"
+
+    response = client.get(f"/api/tasks/{missing_id}")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Task not found"
 
 
 def test_update_task_title(client):
@@ -133,6 +146,21 @@ def test_update_task_done(client):
     assert data["done"] is True
 
 
+def test_update_task_invalid_title(client):
+    # Create a task
+    created = client.post("/api/tasks", json={"title": "Valid title"}).json()
+    tid = created["id"]
+
+    # Update title with invalid whitespace-only value
+    response = client.patch(f"/api/tasks/{tid}", json={"title": "   "})
+
+    # Assert: should return 422 Unprocessable Entity
+    assert response.status_code == 422
+
+    data = response.json()
+    assert data["detail"][0]["msg"].startswith("Value error")
+
+
 def test_update_task_empty_payload(client):
     # Create a task
     created = client.post("/api/tasks", json={"title": "Test"}).json()
@@ -143,6 +171,7 @@ def test_update_task_empty_payload(client):
 
     # Assert: should return 400 Bad Request
     assert response.status_code == 400
+    assert response.json()["detail"] == "No fields provided for update"
 
 
 def test_update_task_not_found(client):
@@ -212,6 +241,16 @@ def test_list_pagination_and_order(client):
     ids1 = {t["id"] for t in page1}
     ids2 = {t["id"] for t in page2}
     assert ids1.isdisjoint(ids2)
+
+
+def test_list_limit_too_large(client):
+    response = client.get("/api/tasks?limit=201")
+    assert response.status_code == 422
+
+
+def test_list_offset_negative(client):
+    response = client.get("/api/tasks?offset=-1")
+    assert response.status_code == 422
 
 
 def test_filter_done_true(client):
