@@ -297,3 +297,33 @@ def test_filter_done_false(client):
 
     # Assert: all returned tasks are not done
     assert all(t["done"] is False for t in data)
+
+
+def test_list_limit_min_boundary(client):
+    # Create a couple of tasks
+    client.post("/api/tasks", json={"title": "One"})
+    client.post("/api/tasks", json={"title": "Two"})
+
+    # Request minimum allowed limit
+    response = client.get("/api/tasks?limit=1")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Only one item should be returned
+    assert len(data) == 1
+
+
+def test_list_limit_max_boundary(client):
+    # Create multiple tasks
+    for i in range(5):
+        client.post("/api/tasks", json={"title": f"Task {i}"})
+
+    # Request maximum allowed limit
+    response = client.get("/api/tasks?limit=200")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # All tasks should be returned (<= 200)
+    assert len(data) >= 5
