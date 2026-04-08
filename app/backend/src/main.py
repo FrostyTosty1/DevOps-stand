@@ -126,7 +126,7 @@ def list_tasks(
     offset: int = Query(default=0, ge=0, description="Number of items to skip"),
 ):
     # Return tasks with optional filtering and pagination.
-    q = db.query(Task).order_by(Task.created_at.desc())
+    q = db.query(Task).order_by(Task.created_at.desc(), Task.id.desc())
     if done is not None:
         q = q.filter(Task.done == done)
     return q.offset(offset).limit(limit).all()
