@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
 from src.db import DATABASE_URL, check_db, get_db, init_db_schema
+from src.config import get_cors_origins
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 from src.models import Task
 from src.schemas import TaskCreate, TaskRead, TaskUpdate
@@ -29,13 +30,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="TinyTasks API (MVP)", lifespan=lifespan)
 
+cors_origins = get_cors_origins()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite (React) dev server
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],           # allow all HTTP methods
     allow_headers=["*"],           # allow all headers
