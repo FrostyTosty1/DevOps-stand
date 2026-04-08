@@ -339,7 +339,7 @@ def test_update_task_changes_updated_at(client):
     original_updated_at = created["updated_at"]
 
     # Small delay to ensure timestamp difference
-    time.sleep(1)
+    time.sleep(1.1)
 
     # Update the task
     response = client.patch(f"/api/tasks/{tid}", json={"title": "After update"})
