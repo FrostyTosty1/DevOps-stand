@@ -1,7 +1,6 @@
 services:
   db:
     image: postgres:16
-    container_name: tinytasks-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -15,13 +14,12 @@ services:
       timeout: 3s
       retries: 10
     ports:
-      - "5432:5432"   
+      - "5432:5432"
   backend:
     build:
       context: ./app/backend
       dockerfile: Dockerfile
     image: tinytasks-backend:dev
-    container_name: tinytasks-backend
     restart: unless-stopped
     depends_on:
       db:
@@ -30,13 +28,12 @@ services:
       # App will read DATABASE_URL from env; Alembic too (entrypoint)
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     ports:
-      - "8080:8080"   
+      - "8080:8080"
   frontend:
     build:
       context: ./app/frontend
       dockerfile: Dockerfile
     image: tinytasks-frontend:dev
-    container_name: tinytasks-frontend
     restart: unless-stopped
     depends_on:
       backend:

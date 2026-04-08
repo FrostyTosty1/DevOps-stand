@@ -8,12 +8,15 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
 from src.db import DATABASE_URL, check_db, get_db, init_db_schema
+from src.config import get_cors_origins
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 from src.models import Task
 from src.schemas import TaskCreate, TaskRead, TaskUpdate
 
+
 SERVICE_NAME = "TinyTasks API"
 SERVICE_VERSION = "0.1.0"
+
 
 # Initialize database schema on app startup.
 @asynccontextmanager
@@ -24,39 +27,55 @@ async def lifespan(app: FastAPI):
         init_db_schema()
     yield
 
+
 app = FastAPI(title="TinyTasks API (MVP)", lifespan=lifespan)
+
+cors_origins = get_cors_origins()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite (React) dev server
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],           # allow all HTTP methods
     allow_headers=["*"],           # allow all headers
 )
 
+
 # Record request count and latency for Prometheus.
 @app.middleware("http")
-async def metrics_middleware(request: Request, call_next):
+async def prometheus_middleware(request: Request, call_next):
     start = perf_counter()
-    response: Response = await call_next(request)
-    duration = perf_counter() - start
-
-    path = request.url.path
     method = request.method
-    status = response.status_code
+    status_code = 500
 
-    REQUEST_COUNT.labels(method=method, path=path, status=status).inc()
-    REQUEST_LATENCY.labels(method=method, path=path).observe(duration)
-    return response
+    route = request.scope.get("route")
+    path = route.path if route and hasattr(route, "path") else request.url.path
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        duration = perf_counter() - start
+
+        REQUEST_COUNT.labels(
+            method=method,
+            path=path,
+            status=str(status_code),
+        ).inc()
+
+        REQUEST_LATENCY.labels(
+            method=method,
+            path=path,
+        ).observe(duration)
+
 
 # Health check endpoint
 # Verify that the service is alive and responding.
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
 
 # Database health check endpoint.
 # Executes a simple query to verify database connectivity.
@@ -65,11 +84,13 @@ def db_healthz():
     check_db()
     return {"db": "ok"}
 
+
 # Prometheus metrics endpoint
 # Exposes collected application metrics in plain text format
 @app.get("/metrics")
 def metrics():
     return PlainTextResponse(prometheus_app(), media_type="text/plain")
+
 
 # Root endpoint
 # Basic service info.
@@ -77,14 +98,24 @@ def metrics():
 def root():
     return JSONResponse({"service": SERVICE_NAME, "version": SERVICE_VERSION})
 
+
 # Create a new task in DB.
-@app.post("/api/tasks", response_model=TaskRead)
-def create_task(payload: TaskCreate, db: Session = Depends(get_db)):
+@app.post("/api/tasks", response_model=TaskRead, status_code=201)
+def create_task(
+    payload: TaskCreate,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     task = Task(title=payload.title)
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # Set Location header to the newly created resource
+    response.headers["Location"] = f"/api/tasks/{task.id}"
+
     return task
+
 
 # Return all tasks from DB.
 @app.get("/api/tasks", response_model=list[TaskRead])
@@ -100,6 +131,7 @@ def list_tasks(
         q = q.filter(Task.done == done)
     return q.offset(offset).limit(limit).all()
 
+
 # Return a single task by ID
 @app.get("/api/tasks/{task_id}", response_model=TaskRead)
 def get_task(task_id: str, db: Session = Depends(get_db)):
@@ -107,6 +139,7 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
 
 # Update a task by ID (title and/or done).
 @app.patch("/api/tasks/{task_id}", response_model=TaskRead)
@@ -120,7 +153,7 @@ def update_task(task_id: str, payload: TaskUpdate, db: Session = Depends(get_db)
     # Reject empty payloads like {}
     if payload.title is None and payload.done is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
-    
+
     # Apply updates
     if payload.title is not None:
         task.title = payload.title
@@ -130,6 +163,7 @@ def update_task(task_id: str, payload: TaskUpdate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(task)
     return task
+
 
 # Delete a task by ID. Returns 204 if deleted, 404 if not found
 @app.delete("/api/tasks/{task_id}", status_code=204)

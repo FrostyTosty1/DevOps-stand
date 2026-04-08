@@ -1,16 +1,8 @@
-import os
-
-from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from src.config import get_database_url
 
-# Load variables from .env if present (useful for local development).
-load_dotenv()
-
-# Fall back to local SQLite when DATABASE_URL is not provided.
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./dev.db"
+DATABASE_URL = get_database_url()
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 

@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-
 from alembic import context
-
-load_dotenv()  
+from sqlalchemy import create_engine
 
 # --- Make sure src/ is importable (so Alembic can see our models) ---
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -18,9 +13,9 @@ SRC_DIR = BASE_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-# --- Import SQLAlchemy Base metadata from our project models ---
+from src import models  # noqa
+from src.config import get_database_url
 from src.db import Base  # noqa
-from src import models # noqa
 
 # Alembic Config object provides access to the .ini file values
 config = context.config
@@ -32,8 +27,8 @@ if config.config_file_name is not None:
 # Define metadata for 'autogenerate' feature
 target_metadata = Base.metadata
 
-# Database URL: read from environment or fallback to local SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
+# Database URL must be provided explicitly via environment.
+DATABASE_URL = get_database_url()
 
 
 def run_migrations_offline() -> None:
