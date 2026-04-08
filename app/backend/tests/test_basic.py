@@ -1,3 +1,6 @@
+import time
+
+
 def test_healthz(client):
     # Send GET request to /healthz
     response = client.get("/healthz")
@@ -327,3 +330,22 @@ def test_list_limit_max_boundary(client):
 
     # All tasks should be returned (<= 200)
     assert len(data) >= 5
+
+
+def test_update_task_changes_updated_at(client):
+    # Create a task
+    created = client.post("/api/tasks", json={"title": "Before update"}).json()
+    tid = created["id"]
+    original_updated_at = created["updated_at"]
+
+    # Small delay to ensure timestamp difference
+    time.sleep(1)
+
+    # Update the task
+    response = client.patch(f"/api/tasks/{tid}", json={"title": "After update"})
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # updated_at should change after PATCH
+    assert data["updated_at"] != original_updated_at
