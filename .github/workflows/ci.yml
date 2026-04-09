@@ -18,5 +18,5 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      - name: Test repo
-        run: cat docker-compose.yml  
+      - name: Install dependencies
+        run: pip install -r requirements.txt
