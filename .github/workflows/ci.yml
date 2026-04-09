@@ -21,7 +21,7 @@ jobs:
       - name: Run backend tests with coverage
         run: |
           pytest -q -rA \
-            --cov=. \
+            --cov=src \
             --cov-report=term-missing \
             --cov-report=xml
       - name: Upload backend coverage
@@ -29,3 +29,23 @@ jobs:
         with:
           name: backend-coverage
           path: app/backend/coverage.xml
+      - name: Write summary
+        run: |
+          COVERAGE=$(python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse("coverage.xml").getroot()
+          rate = float(root.attrib["line-rate"]) * 100
+          print(f"{rate:.2f}%")
+          PY
+          )
+
+          {
+            echo "## Backend CI Summary"
+            echo ""
+            echo "### Results"
+            echo "- Tests: PASSED"
+            echo "- Coverage: ${COVERAGE}"
+            echo ""
+            echo "### Artifacts"
+            echo "- backend-coverage"
+          } >> $GITHUB_STEP_SUMMARY
