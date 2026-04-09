@@ -19,4 +19,5 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r app/backend/requirements-tests.txt
+        
