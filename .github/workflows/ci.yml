@@ -5,19 +5,19 @@ on:
   pull_request:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Test step
-        run: echo "CI works"
   backend-tests:
     runs-on: ubuntu-latest
     name: Backend tests
+    defaults:
+      run:
+        working-directory: ./app/backend
     container:
       image: python:3.12-slim
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Install dependencies
-        run: pip install -r app/backend/requirements-tests.txt
+        run: pip install -r requirements-tests.txt
+      - name: Run backend tests
+        run: pytest -q -rA
         
