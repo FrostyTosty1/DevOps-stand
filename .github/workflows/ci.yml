@@ -49,3 +49,17 @@ jobs:
             echo "### Artifacts"
             echo "- backend-coverage"
           } >> $GITHUB_STEP_SUMMARY
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    name: Frontend build
+    defaults:
+      run:
+        working-directory: ./app/frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
