@@ -18,12 +18,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      - uses: actions/cache@v5
+      - name: Cache pip dependencies
+        uses: actions/cache@v5
         with:
-          path: ~/.cache/pip
+          path: /tmp/pip-cache
           key: ${{ runner.os }}-py312-pip-${{ hashFiles('app/backend/requirements.txt', 'app/backend/requirements-tests.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-   
+            ${{ runner.os }}-py312-pip-
+            ${{ runner.os }}-pip-
       - name: Install dependencies
         run: pip install -r requirements-tests.txt
       - name: Run backend tests with coverage
@@ -37,10 +39,6 @@ jobs:
         with:
           name: backend-coverage
           path: app/backend/coverage.xml
-      - name: Debug pip cache
-        run: |
-          pip cache dir
-          ls -la $(pip cache dir)
       - name: Write summary
         run: |
           COVERAGE=$(python - <<'PY'
