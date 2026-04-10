@@ -7,12 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
-from src.db import check_db, get_db, init_db_schema
 from src.config import get_cors_origins, get_database_url
+from src.db import check_db, get_db, init_db_schema
 from src.metrics import REQUEST_COUNT, REQUEST_LATENCY, prometheus_app
 from src.models import Task
 from src.schemas import TaskCreate, TaskRead, TaskUpdate
-
 
 SERVICE_NAME = "TinyTasks API"
 SERVICE_VERSION = "0.1.0"

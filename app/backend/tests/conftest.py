@@ -24,8 +24,8 @@ def _cleanup_bootstrap_db() -> None:
 
 atexit.register(_cleanup_bootstrap_db)
 
-from src.db import Base, get_db
-from src.main import app
+from src.db import Base, get_db  # noqa: E402
+from src.main import app  # noqa: E402
 
 
 @pytest.fixture
