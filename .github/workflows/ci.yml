@@ -86,3 +86,35 @@ jobs:
             echo "### Results"
             echo "- Frontend build: PASSED"
           } >> "$GITHUB_STEP_SUMMARY"
+  quality-check:
+    runs-on: ubuntu-latest
+    name: Quality check
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: ./app/frontend
+        run: npm ci
+      - name: Use Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install backend dependencies
+        working-directory: ./app/backend
+        run: pip install -r requirements-dev.txt   
+      - name: Check frontend lint
+        working-directory: ./app/frontend
+        run: npm run lint
+      - name: Check backend lint
+        working-directory: ./app/backend
+        run: ruff check .
+      - name: Check backend formatting
+        working-directory: ./app/backend
+        run: ruff format --check .
