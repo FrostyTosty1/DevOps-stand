@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class TaskCreate(BaseModel):
     # Schema for creating a new task (input).
     title: str = Field(min_length=1, max_length=140)
-    
+
     # Trim whitespace and reject titles that become empty after trimming.
     @field_validator("title")
     @classmethod
@@ -15,7 +15,7 @@ class TaskCreate(BaseModel):
         if not v:
             raise ValueError("Title must not be empty")
         return v
-    
+
 
 class TaskUpdate(BaseModel):
     # Schema for updating a task (partial).
@@ -32,6 +32,7 @@ class TaskUpdate(BaseModel):
         if not v:
             raise ValueError("Title must not be empty")
         return v
+
 
 class TaskRead(BaseModel):
     # Schema for reading task data (output).

@@ -7,6 +7,7 @@ from src.config import get_database_url
 class Base(DeclarativeBase):
     pass
 
+
 _engine = None
 _session_local = None
 
