@@ -86,9 +86,29 @@ jobs:
             echo "### Results"
             echo "- Frontend build: PASSED"
           } >> "$GITHUB_STEP_SUMMARY"
-  quality-check:
+  backend-quality:
     runs-on: ubuntu-latest
-    name: Quality check
+    name: Backend quality check
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Use Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install backend dependencies
+        working-directory: ./app/backend
+        run: pip install -r requirements-dev.txt
+      - name: Check backend lint
+        working-directory: ./app/backend
+        run: ruff check .
+      - name: Check backend formatting
+        working-directory: ./app/backend
+        run: ruff format --check .
+  frontend-quality:
+    runs-on: ubuntu-latest
+    name: Frontend quality check
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -101,20 +121,39 @@ jobs:
       - name: Install frontend dependencies
         working-directory: ./app/frontend
         run: npm ci
-      - name: Use Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-      - name: Install backend dependencies
-        working-directory: ./app/backend
-        run: pip install -r requirements-dev.txt   
       - name: Check frontend lint
         working-directory: ./app/frontend
         run: npm run lint
-      - name: Check backend lint
+  backend-docker-build:
+    runs-on: ubuntu-latest
+    name: Backend Docker build
+    needs:
+      - backend-tests
+      - backend-quality
+    defaults:
+      run:
         working-directory: ./app/backend
-        run: ruff check .
-      - name: Check backend formatting
-        working-directory: ./app/backend
-        run: ruff format --check .
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Get short SHA
+        id: get_short_sha
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+      - name: Build backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app/backend
+          file: ./app/backend/Dockerfile
+          push: false
+          outputs: type=docker,dest=${{ runner.temp }}/backend.tar
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-backend:sha-${{ steps.get_short_sha.outputs.short_sha }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: backend-image
+          path: ${{ runner.temp }}/backend.tar
+
