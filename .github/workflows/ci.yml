@@ -151,6 +151,8 @@ jobs:
           push: false
           outputs: type=docker,dest=${{ runner.temp }}/backend.tar
           tags: ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-backend:sha-${{ steps.get_short_sha.outputs.short_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Upload backend image artifact
         uses: actions/upload-artifact@v6
         with:
@@ -183,6 +185,8 @@ jobs:
           push: false
           outputs: type=docker,dest=${{ runner.temp }}/frontend.tar
           tags: ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-frontend:sha-${{ steps.get_short_sha.outputs.short_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Upload frontend image artifact
         uses: actions/upload-artifact@v6
         with:
