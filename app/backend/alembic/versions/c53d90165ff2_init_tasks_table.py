@@ -1,10 +1,11 @@
 """init tasks table
 
 Revision ID: c53d90165ff2
-Revises: 
+Revises:
 Create Date: 2025-10-16 13:45:51.743916
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -12,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'c53d90165ff2'
+revision: str = "c53d90165ff2"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -43,6 +44,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
+
 
 def downgrade() -> None:
     # Drop tasks table if we roll back this migration

@@ -4,8 +4,9 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from sqlalchemy import create_engine
+
+from alembic import context
 
 # --- Make sure src/ is importable (so Alembic can see our models) ---
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -13,9 +14,8 @@ SRC_DIR = BASE_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from src import models  # noqa
-from src.config import get_database_url
-from src.db import Base  # noqa
+from src.config import get_database_url  # noqa: E402
+from src.db import Base  # noqa: E402
 
 # Alembic Config object provides access to the .ini file values
 config = context.config

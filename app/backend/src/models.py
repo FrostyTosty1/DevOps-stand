@@ -12,9 +12,7 @@ class Task(Base):
     __tablename__ = "tasks"
 
     # Primary key: UUID stored as string
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
 
     # Title length is validated at the API/schema layer.
     title: Mapped[str] = mapped_column(String(140), nullable=False)

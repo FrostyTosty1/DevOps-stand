@@ -1,0 +1,303 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    name: Backend tests
+    env:
+      PIP_CACHE_DIR: /tmp/pip-cache
+    defaults:
+      run:
+        working-directory: ./app/backend
+    container:
+      image: python:3.12-slim
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Cache pip dependencies
+        uses: actions/cache@v5
+        with:
+          path: /tmp/pip-cache
+          key: ${{ runner.os }}-py312-pip-${{ hashFiles('app/backend/requirements.txt', 'app/backend/requirements-tests.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-py312-pip-
+      - name: Install dependencies
+        run: pip install -r requirements-tests.txt
+      - name: Run backend tests with coverage
+        run: |
+          pytest -q -rA \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v6
+        with:
+          name: backend-coverage
+          path: app/backend/coverage.xml
+      - name: Write summary
+        run: |
+          COVERAGE=$(python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse("coverage.xml").getroot()
+          rate = float(root.attrib["line-rate"]) * 100
+          print(f"{rate:.2f}%")
+          PY
+          )
+
+          {
+            echo "## Backend CI Summary"
+            echo ""
+            echo "### Results"
+            echo "- Tests: PASSED"
+            echo "- Coverage: ${COVERAGE}"
+            echo ""
+            echo "### Artifacts"
+            echo "- backend-coverage"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    name: Frontend build
+    defaults:
+      run:
+        working-directory: ./app/frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Write summary
+        run: |
+          {
+            echo "## Frontend CI Summary"
+            echo ""
+            echo "### Results"
+            echo "- Frontend build: PASSED"
+          } >> "$GITHUB_STEP_SUMMARY"
+  backend-quality:
+    runs-on: ubuntu-latest
+    name: Backend quality check
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Use Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install backend dependencies
+        working-directory: ./app/backend
+        run: pip install -r requirements-dev.txt
+      - name: Check backend lint
+        working-directory: ./app/backend
+        run: ruff check .
+      - name: Check backend formatting
+        working-directory: ./app/backend
+        run: ruff format --check .
+  frontend-quality:
+    runs-on: ubuntu-latest
+    name: Frontend quality check
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: ./app/frontend
+        run: npm ci
+      - name: Check frontend lint
+        working-directory: ./app/frontend
+        run: npm run lint
+  backend-docker-build:
+    runs-on: ubuntu-latest
+    name: Backend Docker build
+    needs:
+      - backend-tests
+      - backend-quality
+    defaults:
+      run:
+        working-directory: ./app/backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Get short SHA
+        id: get_short_sha
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+      - name: Build backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app/backend
+          file: ./app/backend/Dockerfile
+          push: false
+          outputs: type=docker,dest=${{ runner.temp }}/backend.tar
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-backend:sha-${{ steps.get_short_sha.outputs.short_sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: Upload backend image artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: backend-image
+          path: ${{ runner.temp }}/backend.tar
+  frontend-docker-build:
+    runs-on: ubuntu-latest
+    name: Frontend Docker build
+    needs:
+      - frontend-build
+      - frontend-quality
+    defaults:
+      run:
+        working-directory: ./app/frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Get short SHA
+        id: get_short_sha
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+      - name: Build frontend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app/frontend
+          file: ./app/frontend/Dockerfile
+          push: false
+          outputs: type=docker,dest=${{ runner.temp }}/frontend.tar
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-frontend:sha-${{ steps.get_short_sha.outputs.short_sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+      - name: Upload frontend image artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-image
+          path: ${{ runner.temp }}/frontend.tar
+  backend-docker-publish:
+    runs-on: ubuntu-latest
+    name: Backend Docker publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - backend-docker-build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}  
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Get short SHA
+        id: get_short_sha
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+      - name: Build and push backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app/backend
+          file: ./app/backend/Dockerfile
+          push: true
+          tags: |
+            ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-backend:sha-${{ steps.get_short_sha.outputs.short_sha }}
+            ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: Write backend publish summary
+        run: |
+          {
+            echo "## Backend Publish Summary"
+            echo ""
+            echo "### Image"
+            echo "- ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-backend"
+            echo ""
+            echo "### Tags"
+            echo "- sha-${{ steps.get_short_sha.outputs.short_sha }}"
+            echo "- latest"
+            echo ""
+            echo "### Commit"
+            echo "- ${{ steps.get_short_sha.outputs.short_sha }}"
+            echo ""
+            echo "### Status"
+            echo "- Published successfully"
+          } >> "$GITHUB_STEP_SUMMARY"
+  frontend-docker-publish:
+    runs-on: ubuntu-latest
+    name: Frontend Docker publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - frontend-docker-build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}  
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Get short SHA
+        id: get_short_sha
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app/frontend
+          file: ./app/frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-frontend:sha-${{ steps.get_short_sha.outputs.short_sha }}
+            ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-frontend:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+      - name: Write frontend publish summary
+        run: |
+          {
+            echo "## Frontend Publish Summary"
+            echo ""
+            echo "### Image"
+            echo "- ${{ vars.DOCKERHUB_USERNAME }}/tinytasks-frontend"
+            echo ""
+            echo "### Tags"
+            echo "- sha-${{ steps.get_short_sha.outputs.short_sha }}"
+            echo "- latest"
+            echo ""
+            echo "### Commit"
+            echo "- ${{ steps.get_short_sha.outputs.short_sha }}"
+            echo ""
+            echo "### Status"
+            echo "- Published successfully"
+          } >> "$GITHUB_STEP_SUMMARY"
+          
+

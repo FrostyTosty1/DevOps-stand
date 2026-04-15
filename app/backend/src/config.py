@@ -7,6 +7,7 @@ def get_database_url() -> str:
         raise RuntimeError("DATABASE_URL is not set")
     return database_url
 
+
 def get_cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS")
     if raw:
